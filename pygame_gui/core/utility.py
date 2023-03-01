@@ -392,9 +392,27 @@ class FontResource:
         :return: An exception. We don't handle this here because exception handling in threads
                  seems to be a bit of a mess.
         """
-        error = None
-        if isinstance(self.location, PackageResource):
-            try:
+
+        location = self.location
+
+        if sys.platform in ('emscripten','wasi',):
+            if isinstance(self.location, PackageResource):
+                location = str(resources.files(self.location.package)  / self.location.resource )
+            elif isinstance(self.location, bytes):
+                file_obj = io.BytesIO(base64.standard_b64decode(self.location))
+                location = f"/tmp/{hash(file_obj)}"
+                with open(location, wb) as file:
+                    file.write(location)
+            print("407:",location)
+        try:
+            if isinstance(location, str):
+                self.loaded_font = pygame.freetype.Font(location, self.size, resolution=72)
+                self.loaded_font.pad = True
+                self.loaded_font.origin = True
+                if self.force_style:
+                    self.loaded_font.strong = self.style['bold']
+                    self.loaded_font.oblique = self.style['italic']
+            elif isinstance(self.location, PackageResource):
                 self.loaded_font = pygame.freetype.Font(
                     io.BytesIO((resources.files(self.location.package) /
                                 self.location.resource).read_bytes()),
@@ -404,24 +422,7 @@ class FontResource:
                 if self.force_style:
                     self.loaded_font.strong = self.style['bold']
                     self.loaded_font.oblique = self.style['italic']
-            except (pygame.error, FileNotFoundError, OSError):
-                error = FileNotFoundError('Unable to load resource with path: ' +
-                                          str(self.location))
-
-        elif isinstance(self.location, str):
-            try:
-                self.loaded_font = pygame.freetype.Font(self.location, self.size, resolution=72)
-                self.loaded_font.pad = True
-                self.loaded_font.origin = True
-                if self.force_style:
-                    self.loaded_font.strong = self.style['bold']
-                    self.loaded_font.oblique = self.style['italic']
-            except (pygame.error, FileNotFoundError, OSError):
-                error = FileNotFoundError('Unable to load resource with path: ' +
-                                          str(self.location))
-
-        elif isinstance(self.location, bytes):
-            try:
+            elif isinstance(self.location, bytes):
                 file_obj = io.BytesIO(base64.standard_b64decode(self.location))
                 self.loaded_font = pygame.freetype.Font(file_obj, self.size, resolution=72)
                 self.loaded_font.pad = True
@@ -429,11 +430,11 @@ class FontResource:
                 if self.force_style:
                     self.loaded_font.strong = self.style['bold']
                     self.loaded_font.oblique = self.style['italic']
-            except (pygame.error, FileNotFoundError, OSError):
-                error = FileNotFoundError('Unable to load resource with path: ' +
-                                          str(self.location))
+        except (pygame.error, FileNotFoundError, OSError):
+            return FileNotFoundError('Unable to load resource with path: ' + str(self.location))
 
-        return error
+        # no error
+        return None
 
 
 class ImageResource:
