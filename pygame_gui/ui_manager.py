@@ -1,3 +1,4 @@
+import sys
 import os
 from typing import Tuple, List, Dict, Union, Set, Optional
 
@@ -19,6 +20,12 @@ from pygame_gui.core.layered_gui_group import LayeredGUIGroup
 from pygame_gui.core import ObjectID
 
 from pygame_gui.elements import UITooltip
+
+if sys.platform in ('emscripten','wasi'):
+    class FakeRL(IResourceLoader):
+        def rl(self, *argv,**kw):
+            print(__file__, argv, kw)
+        add_resource = start = started = update = rl
 
 
 class UIManager(IUIManagerInterface):
@@ -59,8 +66,12 @@ class UIManager(IUIManagerInterface):
 
         # Threaded loading
         if resource_loader is None:
-            auto_load = True
-            self.resource_loader = BlockingThreadedResourceLoader()
+            if sys.platform in ('emscripten','wasi'):
+                auto_load = False
+                self.resource_loader = FakeRL()
+            else:
+                auto_load = True
+                self.resource_loader = BlockingThreadedResourceLoader()
         else:
             auto_load = False
             self.resource_loader = resource_loader
