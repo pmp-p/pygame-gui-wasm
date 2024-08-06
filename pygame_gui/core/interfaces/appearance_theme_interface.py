@@ -9,6 +9,7 @@ import pygame
 
 from pygame_gui.core.interfaces.font_dictionary_interface import IUIFontDictionaryInterface
 from pygame_gui.core.interfaces.colour_gradient_interface import IColourGradientInterface
+from pygame_gui.core.interfaces.gui_font_interface import IGUIFontInterface
 
 
 class IUIAppearanceThemeInterface(metaclass=ABCMeta):
@@ -54,12 +55,14 @@ class IUIAppearanceThemeInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def build_all_combined_ids(self, element_ids: Union[None, List[str]],
+    def build_all_combined_ids(self, element_base_ids: Union[None, List[Union[str, None]]],
+                               element_ids: Union[None, List[str]],
                                class_ids: Union[None, List[Union[str, None]]],
                                object_ids: Union[None, List[Union[str, None]]]) -> List[str]:
         """
         Construct a list of combined element ids from the element's various accumulated ids.
 
+        :param element_base_ids: when an element is also another element (e.g. a file dialog is also a window)
         :param element_ids: All the ids of elements this element is contained within.
         :param class_ids: All the ids of 'classes' that this element is contained within.
         :param object_ids: All the ids of objects this element is contained within.
@@ -93,14 +96,14 @@ class IUIAppearanceThemeInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_font(self, combined_element_ids: List[str]) -> pygame.freetype.Font:
+    def get_font(self, combined_element_ids: List[str]) -> IGUIFontInterface:
         """
         Uses some data about a UIElement to get a font object.
 
         :param combined_element_ids: A list of IDs representing an element's location in a
                                      interleaved hierarchy of elements.
 
-        :return pygame.freetype.Font: A pygame font object.
+        :return IGUIFontInterface: An interface to a pygame font object wrapper.
         """
 
     @abstractmethod
@@ -144,12 +147,12 @@ class IUIAppearanceThemeInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def load_theme(self, file_path: Union[str, PathLike, io.StringIO]):
+    def load_theme(self, file_path: Union[str, PathLike, io.StringIO, 'PackageResource', dict]):
         """
-        Loads a theme file, and currently, all associated data like fonts and images required
+        Loads a theme, and currently, all associated data like fonts and images required
         by the theme.
 
-        :param file_path: The path to the theme we want to load.
+        :param file_path: The location of the theme, or the theme data we want to load.
 
         """
 

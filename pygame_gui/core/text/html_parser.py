@@ -6,7 +6,6 @@ from pathlib import Path
 from _markupbase import ParserBase
 
 import pygame
-import pygame.freetype
 
 from pygame_gui.core.interfaces import IUIAppearanceThemeInterface
 
@@ -30,7 +29,7 @@ class HTMLParser(html.parser.HTMLParser):
                          defaults to 1.2.
     """
     default_style = {
-        'font_name': 'fira_code',
+        'font_name': 'noto_sans',
         'font_size': 14,
         'font_colour': pygame.Color(255, 255, 255, 255),
         'bg_colour': pygame.Color(0, 0, 0, 0),
@@ -57,7 +56,8 @@ class HTMLParser(html.parser.HTMLParser):
                  ui_theme: IUIAppearanceThemeInterface,
                  combined_ids: List[str],
                  link_style: Dict[str, Any],
-                 line_spacing: float = 1.0):
+                 line_spacing: float = 1.0,
+                 text_direction: int = pygame.DIRECTION_LTR):
 
         super().__init__()
         ParserBase.__init__(self)
@@ -86,6 +86,9 @@ class HTMLParser(html.parser.HTMLParser):
         self.default_style['link_href'] = ''
         self.default_style['shadow_data'] = None
         self.default_style['effect_id'] = None
+        self.default_style['antialiased'] = True
+        self.default_style['script'] = 'Latn'
+        self.default_style['direction'] = text_direction
 
         # this is the style used before any html is loaded
         self.push_style('default_style', self.default_style)
@@ -248,8 +251,11 @@ class HTMLParser(html.parser.HTMLParser):
             font_name=self.current_style['font_name'],
             font_size=self.current_style['font_size'],
             bold=self.current_style['bold'],
-            italic=self.current_style['italic'])
-        dimensions = (current_font.get_rect(' ').width,
+            italic=self.current_style['italic'],
+            antialiased=self.current_style['antialiased'],
+            script=self.current_style['script'],
+            direction=self.current_style['direction'])
+        dimensions = (4,
                       int(round(self.current_style['font_size'] *
                                 self.line_spacing)))
         chunk = self.create_styled_text_chunk('')
@@ -356,12 +362,12 @@ class HTMLParser(html.parser.HTMLParser):
         The eventual style of a character/bit of text is built up by evaluating all styling
         elements currently on the stack when we parse that bit of text.
 
-        Styles on top of the stack will be evaluated last so they can overwrite elements earlier
-        in the stack (i.e. a later 'font_size' of 5 wil overwrite an earlier 'font_size' of 3).
+        Styles on top of the stack will be evaluated last, so they can overwrite elements earlier
+        in the stack (i.e. a later 'font_size' of 5 will overwrite an earlier 'font_size' of 3).
 
-        :param key: Name for this styling element so we can identify when to remove it when the
-        styling block is closed
+        :param key: Name for this styling element so, we can identify when to remove it
         :param styles: The styling dictionary that contains the actual styling.
+
         """
         old_styles = {name: self.current_style.get(name) for name in styles}
         self.style_stack.append((key, old_styles))
@@ -407,7 +413,10 @@ class HTMLParser(html.parser.HTMLParser):
             font_name=self.current_style['font_name'],
             font_size=self.current_style['font_size'],
             bold=self.current_style['bold'],
-            italic=self.current_style['italic'])
+            italic=self.current_style['italic'],
+            antialiased=self.current_style['antialiased'],
+            script=self.current_style['script'],
+            direction=self.current_style['direction'])
 
         if self.current_style['link']:
             should_underline = (self.current_style['underline'] or

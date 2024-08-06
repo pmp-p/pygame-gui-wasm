@@ -1,14 +1,15 @@
-from typing import Union, Tuple, Optional
+from typing import Union, Optional, List, Iterator
 
 import pygame
 
-from pygame_gui._constants import UI_WINDOW_CLOSE, UI_WINDOW_MOVED_TO_FRONT, UI_BUTTON_PRESSED
+from pygame_gui._constants import UI_WINDOW_CLOSE, UI_WINDOW_MOVED_TO_FRONT, UI_WINDOW_RESIZED, UI_BUTTON_PRESSED
 from pygame_gui._constants import OldType
 
 from pygame_gui.core import ObjectID
 from pygame_gui.core.interfaces import IContainerLikeInterface, IUIContainerInterface
-from pygame_gui.core.interfaces import IWindowInterface, IUIManagerInterface
+from pygame_gui.core.interfaces import IWindowInterface, IUIManagerInterface, IUIElementInterface
 from pygame_gui.core import UIElement, UIContainer
+from pygame_gui.core.gui_type_hints import Coordinate, RectLike
 from pygame_gui.core.drawable_shapes import RectDrawableShape, RoundedRectangleShape
 
 from pygame_gui.elements.ui_button import UIButton
@@ -34,34 +35,42 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
     """
 
     def __init__(self,
-                 rect: pygame.Rect,
+                 rect: RectLike,
                  manager: Optional[IUIManagerInterface] = None,
                  window_display_title: str = "",
-                 element_id: Optional[str] = None,
+                 element_id: Union[List[str], str, None] = None,
                  object_id: Optional[Union[ObjectID, str]] = None,
                  resizable: bool = False,
                  visible: int = 1,
-                 draggable: bool = True):
+                 draggable: bool = True,
+                 *,
+                 ignore_shadow_for_initial_size_and_pos: bool = True,
+                 always_on_top: bool = False):
 
         self.window_display_title = window_display_title
         self._window_root_container = None  # type: Optional[UIContainer]
         self.resizable = resizable
         self.draggable = draggable
-        self.minimum_dimensions = (100, 100)
+        self._always_on_top = always_on_top
+        self._blocking_always_on_top = False
+
         self.edge_hovering = [False, False, False, False]
+
+        element_ids = ['window']
+        if isinstance(element_id, str):
+            element_ids = ['window', element_id]
+        elif isinstance(element_id, list):
+            element_ids = ['window'] + element_id
 
         super().__init__(rect, manager, container=None,
                          starting_height=1,
                          layer_thickness=1,
-                         visible=visible)
+                         visible=visible,
+                         object_id=object_id,
+                         element_id=element_ids,
+                         ignore_shadow_for_initial_size_and_pos=ignore_shadow_for_initial_size_and_pos)
 
-        if element_id is None:
-            element_id = 'window'
-
-        self._create_valid_ids(container=None,
-                               parent_element=None,
-                               object_id=object_id,
-                               element_id=element_id)
+        self.minimum_dimensions = (100, 100)
 
         self._set_image(self.ui_manager.get_universal_empty_surface())
         self.bring_to_front_on_focused = True
@@ -93,57 +102,55 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         self.window_stack = self.ui_manager.get_window_stack()
         self.window_stack.add_new_window(self)
 
+    @property
+    def always_on_top(self) -> bool:
+        return self._always_on_top
+
+    @always_on_top.setter
+    def always_on_top(self, value: bool):
+        if value != self._always_on_top:
+            self.window_stack.remove_window(self)
+            self._always_on_top = value
+            self.window_stack.add_new_window(self)
+
     def set_blocking(self, state: bool):
         """
         Sets whether this window being open should block clicks to the rest of the UI or not.
+        On  being set True it will move the window to the top of the stack if it is not there already.
         Defaults to False.
+
+        If there are any 'always on top' windows at this is set True this window will become one of
+        them, and move to the front of them too.
 
         :param state: True if this window should block mouse clicks.
 
         """
+        if state:
+            if len(self.window_stack.top_stack) > 0:
+                if not self.always_on_top:
+                    self._blocking_always_on_top = True
+                self.always_on_top = True
+            self.window_stack.move_window_to_front(self)
+        else:
+            if self._blocking_always_on_top:
+                self._blocking_always_on_top = False
+                self.always_on_top = False
+
         self.is_blocking = state
 
-    def set_minimum_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                                       Tuple[int, int],
-                                                       Tuple[float, float]]):
-        """
-        If this window is resizable, then the dimensions we set here will be the minimum that
-        users can change the window to. They are also used as the minimum size when
-        'set_dimensions' is called.
-
-        :param dimensions: The new minimum dimension for the window.
-
-        """
-        self.minimum_dimensions = (min(self.ui_container.rect.width, int(dimensions[0])),
-                                   min(self.ui_container.rect.height, int(dimensions[1])))
-
-        if ((self.rect.width < self.minimum_dimensions[0]) or
-                (self.rect.height < self.minimum_dimensions[1])):
-            new_width = max(self.minimum_dimensions[0], self.rect.width)
-            new_height = max(self.minimum_dimensions[1], self.rect.height)
-            self.set_dimensions((new_width, new_height))
-
-    def set_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                               Tuple[int, int],
-                                               Tuple[float, float]]):
+    def set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
         """
         Set the size of this window and then re-sizes and shifts the contents of the windows
         container to fit the new size.
 
         :param dimensions: The new dimensions to set.
+        :param clamp_to_container: Whether we should clamp the dimensions to the
+                                   dimensions of the container or not.
 
         """
-        # clamp to minimum dimensions and container size
-        dimensions = (min(self.ui_container.rect.width,
-                          max(self.minimum_dimensions[0],
-                              int(dimensions[0]))),
-                      min(self.ui_container.rect.height,
-                          max(self.minimum_dimensions[1],
-                              int(dimensions[1]))))
-
         # Don't use a basic gate on this set dimensions method because the container may be a
         # different size to the window
-        super().set_dimensions(dimensions)
+        super().set_dimensions(dimensions, clamp_to_container=True)
 
         if self._window_root_container is not None:
             new_container_dimensions = (self.relative_rect.width - (2 * self.shadow_width),
@@ -153,10 +160,14 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
                 container_pos = (self.relative_rect.x + self.shadow_width,
                                  self.relative_rect.y + self.shadow_width)
                 self._window_root_container.set_relative_position(container_pos)
+                window_resize_event = pygame.event.Event(UI_WINDOW_RESIZED,
+                                                         {'ui_element': self,
+                                                          'ui_object_id': self.most_specific_combined_id,
+                                                          'external_size': self.rect.size,
+                                                          'internal_size': self.window_element_container.get_size()})
+                pygame.event.post(window_resize_event)
 
-    def set_relative_position(self, position: Union[pygame.math.Vector2,
-                                                    Tuple[int, int],
-                                                    Tuple[float, float]]):
+    def set_relative_position(self, position: Coordinate):
         """
         Method to directly set the relative rect position of an element.
 
@@ -170,9 +181,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
                              self.relative_rect.y + self.shadow_width)
             self._window_root_container.set_relative_position(container_pos)
 
-    def set_position(self, position: Union[pygame.math.Vector2,
-                                           Tuple[int, int],
-                                           Tuple[float, float]]):
+    def set_position(self, position: Coordinate):
         """
         Method to directly set the absolute screen rect position of an element.
 
@@ -232,7 +241,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
 
     def check_clicked_inside_or_blocking(self, event: pygame.event.Event) -> bool:
         """
-        A quick event check outside of the normal event processing so that this window is brought
+        A quick event check outside the normal event processing so that this window is brought
         to the front of the window stack if we click on any of the elements contained within it.
 
         :param event: The event to check.
@@ -272,6 +281,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         # This is needed to keep the window in sync with the container after adding elements to it
         if self._window_root_container.layer_thickness != self.layer_thickness:
             self.layer_thickness = self._window_root_container.layer_thickness
+            self.window_stack.refresh_window_stack_from_window(self)
         if self.title_bar is not None:
             if self.title_bar.held:
                 mouse_x, mouse_y = self.ui_manager.get_mouse_position()
@@ -300,7 +310,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
 
     def _update_drag_resizing(self):
         """
-        Re-sizes a window that is being dragged around its the edges by the mouse.
+        Re-sizes a window that is being dragged around its edges by the mouse.
 
         """
         x_pos = self.rect.left
@@ -339,9 +349,9 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
                 else:
                     x_pos = self.rect.left
         x_dimension = max(self.minimum_dimensions[0],
-                          min(self.ui_container.rect.width, x_dimension))
+                          min(self.ui_container.get_container().get_rect().width, x_dimension))
         y_dimension = max(self.minimum_dimensions[1],
-                          min(self.ui_container.rect.height, y_dimension))
+                          min(self.ui_container.get_container().get_rect().height, y_dimension))
         self.set_position((x_pos, y_pos))
         self.set_dimensions((x_dimension, y_dimension))
 
@@ -367,7 +377,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         For the window the only hovering we care about is the edges if this is a resizable window.
 
         :param time_delta: time passed in seconds between one call to this method and the next.
-        :param hovered_higher_element: Have we already hovered an element/window above this one.
+        :param hovered_higher_element: Have we already hovered an element/window above this one?
 
         """
         hovered = False
@@ -599,9 +609,14 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
                                                                'rounded_rectangle']):
             has_any_changed = True
 
+        if self._check_misc_theme_data_changed(attribute_name='tool_tip_delay',
+                                               default_value=1.0,
+                                               casting_func=float):
+            has_any_changed = True
+
         if self._check_shape_theming_changed(defaults={'border_width': 1,
                                                        'shadow_width': 15,
-                                                       'shape_corner_radius': 2}):
+                                                       'shape_corner_radius': [2, 2, 2, 2]}):
             has_any_changed = True
 
         background_colour = self.ui_theme.get_colour_or_gradient('dark_bg',
@@ -692,7 +707,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
 
     def on_moved_to_front(self):
         """
-        Called when a window is moved to the front of the stack.
+        Called when a window is moved to the front of its stack.
         """
         # old event - to be removed in 0.8.0
         window_front_event = pygame.event.Event(pygame.USEREVENT,
@@ -704,6 +719,7 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         # new event
         window_front_event = pygame.event.Event(UI_WINDOW_MOVED_TO_FRONT,
                                                 {'ui_element': self,
+                                                 'always_on_top': int(self.always_on_top),
                                                  'ui_object_id': self.most_specific_combined_id})
         pygame.event.post(window_front_event)
 
@@ -722,7 +738,8 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         """
         if self.is_enabled:
             self.is_enabled = False
-            self._window_root_container.disable()
+            if self._window_root_container is not None:
+                self._window_root_container.disable()
 
     def enable(self):
         """
@@ -730,7 +747,8 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         """
         if not self.is_enabled:
             self.is_enabled = True
-            self._window_root_container.enable()
+            if self._window_root_container is not None:
+                self._window_root_container.enable()
 
     def show(self):
         """
@@ -738,8 +756,8 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         propagate and show all the children.
         """
         super().show()
-
-        self._window_root_container.show()
+        if self._window_root_container is not None:
+            self._window_root_container.show()
 
     def hide(self):
         """
@@ -747,8 +765,8 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         propagate and hide all the children.
         """
         super().hide()
-
-        self._window_root_container.hide()
+        if self._window_root_container is not None:
+            self._window_root_container.hide()
 
     def get_relative_mouse_pos(self):
         """
@@ -762,9 +780,47 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         rel_mouse_pos = None
         inside_window_rect = self.get_container().get_rect()
         if inside_window_rect.contains(pygame.Rect(abs_mouse_pos, (1, 1))):
-
             window_contents_top_left = inside_window_rect.topleft
             rel_mouse_pos = (abs_mouse_pos[0] - window_contents_top_left[0],
                              abs_mouse_pos[1] - window_contents_top_left[1])
 
         return rel_mouse_pos
+
+    def __iter__(self) -> Iterator[IUIElementInterface]:
+        """
+        Iterates over the elements within the container.
+        :return Iterator: An iterator over the elements within the container.
+        """
+        return iter(self.get_container())
+
+    def __contains__(self, item: IUIElementInterface) -> bool:
+        """
+        Checks if the given element is contained within the container.
+        :param item: The element to check for containment.
+        :return bool: Return True if the element is found, False otherwise.
+        """
+        return item in self.get_container()
+
+    def are_contents_hovered(self) -> bool:
+        """
+        Are any of the elements in the container hovered? Used for handling mousewheel events.
+
+        :return: True if one of the elements is hovered, False otherwise.
+        """
+        any_hovered = False
+        for element in self:
+            if any(sub_element.hovered for sub_element in element.get_focus_set()):
+                any_hovered = True
+            elif isinstance(element, IContainerLikeInterface):
+                any_hovered = element.are_contents_hovered()
+
+            if any_hovered:
+                break
+        return any_hovered
+
+    def get_layer_thickness(self) -> int:
+        """
+        The layer 'thickness' of this window/
+        :return: an integer
+        """
+        return self.layer_thickness

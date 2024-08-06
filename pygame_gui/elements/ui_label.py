@@ -14,6 +14,7 @@ from pygame_gui._constants import UITextEffectType, TEXT_EFFECT_TYPING_APPEAR
 from pygame_gui._constants import TEXT_EFFECT_FADE_IN, TEXT_EFFECT_FADE_OUT
 from pygame_gui.core.text.text_effects import TypingAppearEffect, FadeInEffect, FadeOutEffect
 from pygame_gui.core.text import TextLineChunkFTFont
+from pygame_gui.core.gui_type_hints import Coordinate, RectLike
 
 
 class UILabel(UIElement, IUITextOwnerInterface):
@@ -21,15 +22,17 @@ class UILabel(UIElement, IUITextOwnerInterface):
     A label lets us display a single line of text with a single font style. It's a quick to
     rebuild and simple alternative to the text box element.
 
-    :param relative_rect: The rectangle that contains and positions the label relative to it's
-                          container.
+    :param relative_rect: Normally a rectangle describing the position (relative to its container) and
+                          dimensions. Also accepts a position Coordinate where the dimensions
+                          will be dynamic depending on the text contents. Dynamic dimensions can
+                          be requested by setting the required dimension to -1.
     :param text: The text to display in the label.
     :param manager: The UIManager that manages this label. If not provided or set to None,
                     it will try to use the first UIManager that was created by your application.
     :param container: The container that this element is within. If not provided or set to None
                       will be the root window's container.
     :param parent_element: The element this element 'belongs to' in the theming hierarchy.
-    :param object_id: A custom defined ID for fine tuning of theming.
+    :param object_id: A custom defined ID for fine-tuning of theming.
     :param anchors: A dictionary describing what this element's relative_rect is relative to.
     :param visible: Whether the element is visible by default. Warning - container visibility
                     may override this.
@@ -38,7 +41,7 @@ class UILabel(UIElement, IUITextOwnerInterface):
                         in the middle.
     """
 
-    def __init__(self, relative_rect: pygame.Rect,
+    def __init__(self, relative_rect: Union[RectLike, Coordinate],
                  text: str,
                  manager: Optional[IUIManagerInterface] = None,
                  container: Optional[IContainerLikeInterface] = None,
@@ -49,19 +52,18 @@ class UILabel(UIElement, IUITextOwnerInterface):
                  *,
                  text_kwargs: Optional[Dict[str, str]] = None):
 
-        super().__init__(relative_rect, manager, container,
+        rel_rect = (relative_rect if len(relative_rect) == 4
+                    else pygame.Rect(relative_rect, (-1, -1)))
+
+        super().__init__(rel_rect, manager, container,
                          starting_height=1,
                          layer_thickness=1,
                          anchors=anchors,
-                         visible=visible)
+                         visible=visible,
+                         parent_element=parent_element,
+                         object_id=object_id,
+                         element_id=['label'])
 
-        self._create_valid_ids(container=container,
-                               parent_element=parent_element,
-                               object_id=object_id,
-                               element_id='label')
-
-        self.dynamic_width = False
-        self.dynamic_height = False
         self.dynamic_dimensions_orig_top_left = relative_rect.topleft
 
         self.text = text
@@ -97,7 +99,6 @@ class UILabel(UIElement, IUITextOwnerInterface):
         :param text_kwargs: a dictionary of variable arguments to pass to the translated string
                             useful when you have multiple translations that need variables inserted
                             in the middle.
-
         """
         any_changed = False
         if text != self.text:
@@ -112,7 +113,7 @@ class UILabel(UIElement, IUITextOwnerInterface):
             any_changed = True
 
         if any_changed:
-            if self.dynamic_width:
+            if self.dynamic_width or self.dynamic_height:
                 self.rebuild()
             else:
                 self.drawable_shape.set_text(translate(self.text, **self.text_kwargs))
@@ -123,15 +124,9 @@ class UILabel(UIElement, IUITextOwnerInterface):
         the displayed text is or remake it with different theming (if the theming has changed).
         """
 
-        self.rect.width = -1 if self.dynamic_width else self.rect.width
-        self.relative_rect.width = -1 if self.dynamic_width else self.relative_rect.width
-
-        self.rect.height = -1 if self.dynamic_height else self.rect.height
-        self.relative_rect.height = -1 if self.dynamic_height else self.relative_rect.height
-
         text_size = self.font.get_rect(translate(self.text, **self.text_kwargs)).size
-        if ((self.rect.height != -1 and text_size[1] > self.relative_rect.height) or
-                (self.rect.width != -1 and text_size[0] > self.relative_rect.width)):
+        if (not (self.dynamic_height or self.dynamic_width) and
+                ((text_size[1] > self.relative_rect.height) or (text_size[0] > self.relative_rect.width))):
             width_overlap = self.relative_rect.width - text_size[0]
             height_overlap = self.relative_rect.height - text_size[1]
             warn_text = ('Label Rect is too small for text: '
@@ -161,26 +156,34 @@ class UILabel(UIElement, IUITextOwnerInterface):
                               'text_horiz_alignment_padding': self.text_horiz_alignment_padding,
                               'text_vert_alignment_padding': self.text_vert_alignment_padding}
 
-        self.drawable_shape = RectDrawableShape(self.rect, theming_parameters,
+        drawable_shape_rect = self.rect.copy()
+        if self.dynamic_width:
+            drawable_shape_rect.width = -1
+        if self.dynamic_height:
+            drawable_shape_rect.height = -1
+        self.drawable_shape = RectDrawableShape(drawable_shape_rect, theming_parameters,
                                                 ['normal', 'disabled'], self.ui_manager)
         self.on_fresh_drawable_shape_ready()
 
-        if self.relative_rect.width == -1 or self.relative_rect.height == -1:
-            self.dynamic_width = self.relative_rect.width == -1
-            self.dynamic_height = self.relative_rect.height == -1
+        self._on_contents_changed()
 
-            self.set_dimensions(self.image.get_size())
+    def _calc_dynamic_size(self):
+        if self.dynamic_width or self.dynamic_height:
+            if self.image.get_size() == (0, 0):
+                self._set_dimensions(self._get_pre_clipped_image_size())
+            else:
+                self._set_dimensions(self.image.get_size())
 
-            # if we have anchored the left side of our button to the right of it's container then
+            # if we have anchored the left side of our button to the right of its container then
             # changing the width is going to mess up the horiz position as well.
             new_left = self.relative_rect.left
             new_top = self.relative_rect.top
-            if self.anchors['left'] == 'right' and self.dynamic_width:
+            if 'left' in self.anchors and self.anchors['left'] == 'right' and self.dynamic_width:
                 left_offset = self.dynamic_dimensions_orig_top_left[0]
                 new_left = left_offset - self.relative_rect.width
-            # if we have anchored the top side of our button to the bottom of it's container then
+            # if we have anchored the top side of our button to the bottom of its container then
             # changing the height is going to mess up the vert position as well.
-            if self.anchors['top'] == 'bottom' and self.dynamic_height:
+            if 'top' in self.anchors and self.anchors['top'] == 'bottom' and self.dynamic_height:
                 top_offset = self.dynamic_dimensions_orig_top_left[1]
                 new_top = top_offset - self.relative_rect.height
 
@@ -231,6 +234,11 @@ class UILabel(UIElement, IUITextOwnerInterface):
                                                casting_func=self.tuple_extract):
             any_changed = True
 
+        if self._check_misc_theme_data_changed(attribute_name='tool_tip_delay',
+                                               default_value=1.0,
+                                               casting_func=float):
+            any_changed = True
+
         if self._check_text_alignment_theming():
             any_changed = True
 
@@ -274,7 +282,8 @@ class UILabel(UIElement, IUITextOwnerInterface):
         """
         if self.is_enabled:
             self.is_enabled = False
-            self.drawable_shape.set_active_state('disabled')
+            if self.drawable_shape is not None:
+                self.drawable_shape.set_active_state('disabled')
 
     def enable(self):
         """
@@ -282,7 +291,8 @@ class UILabel(UIElement, IUITextOwnerInterface):
         """
         if not self.is_enabled:
             self.is_enabled = True
-            self.drawable_shape.set_active_state('normal')
+            if self.drawable_shape is not None:
+                self.drawable_shape.set_active_state('normal')
 
     def on_locale_changed(self):
         font = self.ui_theme.get_font(self.combined_element_ids)
@@ -290,7 +300,7 @@ class UILabel(UIElement, IUITextOwnerInterface):
             self.font = font
             self.rebuild()
         else:
-            if self.dynamic_width:
+            if self.dynamic_width or self.dynamic_height:
                 self.rebuild()
             else:
                 self.drawable_shape.set_text(translate(self.text, **self.text_kwargs))

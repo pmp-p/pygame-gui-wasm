@@ -9,6 +9,7 @@ from pygame_gui.core.interfaces import IUIManagerInterface, IUITooltipInterface,
 from pygame_gui.core.ui_element import UIElement
 
 from pygame_gui.elements.ui_text_box import UITextBox
+from pygame_gui.core.gui_type_hints import Coordinate
 
 
 class UITooltip(UIElement, IUITooltipInterface):
@@ -28,7 +29,7 @@ class UITooltip(UIElement, IUITooltipInterface):
     :param manager: The UIManager that manages this element. If not provided or set to None,
                     it will try to use the first UIManager that was created by your application.
     :param parent_element: The element this element 'belongs to' in the theming hierarchy.
-    :param object_id: A custom defined ID for fine tuning of theming.
+    :param object_id: A custom defined ID for fine-tuning of theming.
     :param anchors: A dictionary describing what this element's relative_rect is relative to.
     :param text_kwargs: a dictionary of variable arguments to pass to the translated text
                         useful when you have multiple translations that need variables inserted
@@ -43,6 +44,7 @@ class UITooltip(UIElement, IUITooltipInterface):
                  object_id: Optional[Union[ObjectID, str]] = None,
                  anchors: Optional[Dict[str, Union[str, UIElement]]] = None,
                  *,
+                 wrap_width: Optional[int] = None,
                  text_kwargs: Dict[str, str] = None):
 
         super().__init__(relative_rect=pygame.Rect((0, 0), (-1, -1)),
@@ -50,23 +52,22 @@ class UITooltip(UIElement, IUITooltipInterface):
                          container=None,
                          starting_height=manager.get_sprite_group().get_top_layer()+1,
                          layer_thickness=1,
-                         anchors=anchors)
-
-        self._create_valid_ids(container=None,
-                               parent_element=parent_element,
-                               object_id=object_id,
-                               element_id='tool_tip')
+                         anchors=anchors,
+                         parent_element=parent_element,
+                         object_id=object_id,
+                         element_id=['tool_tip'])
 
         self.text_block = None
         self.rect_width = None  # type: Optional[int]
         self.hover_distance_from_target = hover_distance
 
+        self.overwrite_theme_wrap_width = wrap_width
         self.rebuild_from_changed_theme_data()
 
         self.text_block = UITextBox(html_text,
                                     pygame.Rect(0, 0, self.rect_width, -1),
                                     manager=self.ui_manager,
-                                    layer_starting_height=self._layer,
+                                    starting_height=self._layer,
                                     parent_element=self,
                                     text_kwargs=text_kwargs)
 
@@ -98,7 +99,7 @@ class UITooltip(UIElement, IUITooltipInterface):
         self.text_block.kill()
         super().kill()
 
-    def find_valid_position(self, position: pygame.math.Vector2) -> bool:
+    def find_valid_position(self, position: Coordinate) -> bool:
         """
         Finds a valid position for the tool tip inside the root container of the UI.
 
@@ -107,7 +108,7 @@ class UITooltip(UIElement, IUITooltipInterface):
         the left and to the right, until we find a position that fits the whole tooltip rectangle
         on the screen at once.
 
-        If we fail to manage this then the method will return False. Otherwise it returns True and
+        If we fail to manage this then the method will return False. Otherwise, it returns True and
         set the position of the tool tip to our valid position.
 
         :param position: A 2D vector representing the position of the target this tool tip is for.
@@ -119,8 +120,8 @@ class UITooltip(UIElement, IUITooltipInterface):
         window_rect = self.ui_manager.get_root_container().get_rect()
 
         if window_rect.contains(pygame.Rect(int(position[0]), int(position[1]), 1, 1)):
-            self.rect.left = int(position.x)
-            self.rect.top = int(position.y + self.hover_distance_from_target[1])
+            self.rect.left = int(position[0])
+            self.rect.top = int(position[1] + self.hover_distance_from_target[1])
 
             if window_rect.contains(self.rect):
                 self.relative_rect = self.rect.copy()
@@ -128,7 +129,7 @@ class UITooltip(UIElement, IUITooltipInterface):
                 return True
             else:
                 if self.rect.bottom > window_rect.bottom:
-                    self.rect.bottom = int(position.y - self.hover_distance_from_target[1])
+                    self.rect.bottom = int(position[1] - self.hover_distance_from_target[1])
                 if self.rect.right > window_rect.right:
                     self.rect.right = window_rect.right - self.hover_distance_from_target[0]
                 if self.rect.left < window_rect.left:
@@ -161,14 +162,15 @@ class UITooltip(UIElement, IUITooltipInterface):
                                                casting_func=int):
             has_any_changed = True
 
+        if self.overwrite_theme_wrap_width is not None:
+            self.rect_width = self.overwrite_theme_wrap_width
+
         if has_any_changed:
             self.rebuild()
 
-    def set_position(self, position: Union[pygame.math.Vector2,
-                                           Tuple[int, int],
-                                           Tuple[float, float]]):
+    def set_position(self, position: Coordinate):
         """
-        Sets the absolute screen position of this tool tip, updating it's subordinate text box at
+        Sets the absolute screen position of this tool tip, updating its subordinate text box at
         the same time.
 
         :param position: The absolute screen position to set.
@@ -177,11 +179,9 @@ class UITooltip(UIElement, IUITooltipInterface):
         super().set_position(position)
         self.text_block.set_position(position)
 
-    def set_relative_position(self, position: Union[pygame.math.Vector2,
-                                                    Tuple[int, int],
-                                                    Tuple[float, float]]):
+    def set_relative_position(self, position: Coordinate):
         """
-        Sets the relative screen position of this tool tip, updating it's subordinate text box at
+        Sets the relative screen position of this tool tip, updating its subordinate text box at
         the same time.
 
         :param position: The relative screen position to set.
@@ -190,13 +190,13 @@ class UITooltip(UIElement, IUITooltipInterface):
         super().set_relative_position(position)
         self.text_block.set_relative_position(position)
 
-    def set_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                               Tuple[int, int],
-                                               Tuple[float, float]]):
+    def set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
         """
         Directly sets the dimensions of this tool tip. This will overwrite the normal theming.
 
-        :param dimensions: The new dimensions to set
+        :param dimensions: The new dimensions to set.
+        :param clamp_to_container: Whether we should clamp the dimensions to the
+                                   dimensions of the container or not.
 
         """
         self.rect_width = dimensions[0]

@@ -14,6 +14,7 @@ from pygame_gui.core.drawable_shapes import RectDrawableShape, RoundedRectangleS
 
 from pygame_gui.elements.ui_button import UIButton
 from pygame_gui.elements.ui_vertical_scroll_bar import UIVerticalScrollBar
+from pygame_gui.core.gui_type_hints import RectLike, Coordinate
 
 
 class UISelectionList(UIElement):
@@ -32,10 +33,10 @@ class UISelectionList(UIElement):
                     it will try to use the first UIManager that was created by your application.
     :param allow_multi_select: True if we are allowed to pick multiple things from the selection
                                list.
-    :param allow_double_clicks: True if we can double click on items in the selection list.
-    :param container: The container this element is inside of (by default the root container)
+    :param allow_double_clicks: True if we can double-click on items in the selection list.
+    :param container: The container this element is inside (by default the root container)
                       distinct from this panel's container.
-    :param starting_height: The starting height up from it's container where this list is placed
+    :param starting_height: The starting height up from its container where this list is placed
                             into a layer.
     :param parent_element: A hierarchical 'parent' used for signifying belonging and used in
                            theming and events.
@@ -48,7 +49,7 @@ class UISelectionList(UIElement):
     """
 
     def __init__(self,
-                 relative_rect: pygame.Rect,
+                 relative_rect: RectLike,
                  item_list: Union[List[str], List[Tuple[str, str]]],
                  manager: Optional[IUIManagerInterface] = None,
                  *,
@@ -65,19 +66,19 @@ class UISelectionList(UIElement):
                     List[str], List[Tuple[str, str]]  # Multi-selection lists
                     ]] = None,
                  ):
-
+        # Need to move some declarations early as they are indirectly referenced via the ui element
+        # constructor
+        self.list_and_scroll_bar_container = None
         super().__init__(relative_rect,
                          manager,
                          container,
                          starting_height=starting_height,
                          layer_thickness=1,
                          anchors=anchors,
-                         visible=visible)
-
-        self._create_valid_ids(container=container,
-                               parent_element=parent_element,
-                               object_id=object_id,
-                               element_id='selection_list')
+                         visible=visible,
+                         parent_element=parent_element,
+                         object_id=object_id,
+                         element_id=['selection_list'])
 
         self._parent_element = parent_element
         self.list_and_scroll_bar_container = None
@@ -93,7 +94,6 @@ class UISelectionList(UIElement):
         self.background_image = None
         self.border_width = 1
         self.shadow_width = 2
-        self.shape_corner_radius = 0
         self.shape = 'rectangle'
 
         self.scroll_bar = None  # type: Union[UIVerticalScrollBar, None]
@@ -128,15 +128,21 @@ class UISelectionList(UIElement):
         self._raw_item_list = [item for item in self._raw_item_list if item not in items_to_remove]
         self.set_item_list(self._raw_item_list)
 
-    def get_single_selection(self) -> Union[str, None]:
+    def get_single_selection(self, include_object_id: bool = False) -> Union[Tuple[str, str], str, None]:
         """
         Get the selected item in a list, if any. Only works if this is a single-selection list.
+
+        :param include_object_id: if True adds the object id of this list item to the returned list of Tuples.
+                                  If False we just get a list of the visible text strings only.
 
         :return: A single item name as a string or None.
 
         """
         if not self.allow_multi_select:
-            selected_list = [item['text'] for item in self.item_list if item['selected']]
+            if include_object_id:
+                selected_list = [(item['text'], item['object_id']) for item in self.item_list if item['selected']]
+            else:
+                selected_list = [item['text'] for item in self.item_list if item['selected']]
             if len(selected_list) == 1:
                 return selected_list[0]
             elif len(selected_list) == 0:
@@ -148,17 +154,23 @@ class UISelectionList(UIElement):
             raise RuntimeError('Requesting single selection,'
                                ' from multi-selection list')
 
-    def get_multi_selection(self) -> List[str]:
+    def get_multi_selection(self, include_object_id: bool = False) -> Union[List[str], List[Tuple[str, str]]]:
         """
         Get all the selected items in our selection list. Only works if this is a
         multi-selection list.
+
+        :param include_object_id: if True adds the object id of this list item to the returned list of Tuples.
+                                  If False we just get a list of the visible text strings only.
 
         :return: A list of the selected items in our selection list. May be empty if nothing
                  selected.
 
         """
         if self.allow_multi_select:
-            return [item['text'] for item in self.item_list if item['selected']]
+            if include_object_id:
+                return [(item['text'], item["object_id"]) for item in self.item_list if item['selected']]
+            else:
+                return [item['text'] for item in self.item_list if item['selected']]
         else:
             raise RuntimeError('Requesting multi selection, from single-selection list')
 
@@ -344,9 +356,9 @@ class UISelectionList(UIElement):
         """
         Set the default selection of the list. The default selection type must be a string or (str,
         str) tuple for single selection lists. For multi-selection lists, they can be a single
-        string, an (str, str) tuple, a list of strings, or a list of (str, str) tuples.
+        string, a (str, str) tuple, a list of strings, or a list of (str, str) tuples.
 
-        For foregivess' sake, a single-item list MAY be used to specify the default value for a
+        For ease of use, a single-item list MAY be used to specify the default value for a
         single-selection list.
 
         Tuples should be arranged like so:
@@ -486,14 +498,14 @@ class UISelectionList(UIElement):
 
         return False  # Don't consume any events
 
-    def set_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                               Tuple[int, int],
-                                               Tuple[float, float]]):
+    def set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
         """
         Set the size of this panel and then resizes and shifts the contents of the panel container
         to fit the new size.
 
+
         :param dimensions: The new dimensions to set.
+        :param clamp_to_container: clamp these dimensions to the size of the element's container.
 
         """
         # Don't use a basic gate on this set dimensions method because the container may be a
@@ -537,9 +549,7 @@ class UISelectionList(UIElement):
             self.scroll_bar.has_moved_recently = True
             self.update(0.0)
 
-    def set_relative_position(self, position: Union[pygame.math.Vector2,
-                                                    Tuple[int, int],
-                                                    Tuple[float, float]]):
+    def set_relative_position(self, position: Coordinate):
         """
         Method to directly set the relative rect position of an element.
 
@@ -552,9 +562,7 @@ class UISelectionList(UIElement):
         container_top = self.relative_rect.top + border_and_shadow
         self.list_and_scroll_bar_container.set_relative_position((container_left, container_top))
 
-    def set_position(self, position: Union[pygame.math.Vector2,
-                                           Tuple[int, int],
-                                           Tuple[float, float]]):
+    def set_position(self, position: Coordinate):
         """
         Sets the absolute screen position of this slider, updating all subordinate button
         elements at the same time.
@@ -607,12 +615,17 @@ class UISelectionList(UIElement):
 
         if self._check_shape_theming_changed(defaults={'border_width': 1,
                                                        'shadow_width': 2,
-                                                       'shape_corner_radius': 2}):
+                                                       'shape_corner_radius': [2, 2, 2, 2]}):
             has_any_changed = True
 
         if self._check_misc_theme_data_changed(attribute_name='list_item_height',
                                                default_value=20,
                                                casting_func=int):
+            has_any_changed = True
+
+        if self._check_misc_theme_data_changed(attribute_name='tool_tip_delay',
+                                               default_value=1.0,
+                                               casting_func=float):
             has_any_changed = True
 
         if has_any_changed:
@@ -676,42 +689,45 @@ class UISelectionList(UIElement):
 
     def disable(self):
         """
-        Disables all elements in the selection list so they are no longer interactive.
+        Disables all elements in the selection list, so they are no longer interactive.
         """
         if self.is_enabled:
             self.is_enabled = False
-            self.list_and_scroll_bar_container.disable()
+            if self.list_and_scroll_bar_container is not None:
+                self.list_and_scroll_bar_container.disable()
 
             # clear selections
-            for item in self.item_list:
-                item['selected'] = False
+            if self.item_list is not None:
+                for item in self.item_list:
+                    item['selected'] = False
 
     def enable(self):
         """
-        Enables all elements in the selection list so they are interactive again.
+        Enables all elements in the selection list, so they are interactive again.
         """
         if not self.is_enabled:
             self.is_enabled = True
-            self.list_and_scroll_bar_container.enable()
+            if self.list_and_scroll_bar_container is not None:
+                self.list_and_scroll_bar_container.enable()
 
     def show(self):
         """
         In addition to the base UIElement.show() - call show() of owned container -
-        list_and_scroll_bar_container. All other subelements (item_list_container, scrollbar) are
+        list_and_scroll_bar_container. All other sub-elements (item_list_container, scrollbar) are
         children of list_and_scroll_bar_container, so it's visibility will propagate to them -
         there is no need to call their show() methods separately.
         """
         super().show()
-
-        self.list_and_scroll_bar_container.show()
+        if self.list_and_scroll_bar_container is not None:
+            self.list_and_scroll_bar_container.show()
 
     def hide(self):
         """
         In addition to the base UIElement.hide() - call hide() of owned container -
-        list_and_scroll_bar_container. All other subelements (item_list_container, scrollbar) are
+        list_and_scroll_bar_container. All other sub-elements (item_list_container, scrollbar) are
         children of list_and_scroll_bar_container, so it's visibility will propagate to them -
         there is no need to call their hide() methods separately.
         """
         super().hide()
-
-        self.list_and_scroll_bar_container.hide()
+        if self.list_and_scroll_bar_container is not None:
+            self.list_and_scroll_bar_container.hide()

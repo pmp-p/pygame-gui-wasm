@@ -1,4 +1,5 @@
-from typing import Union, Tuple, Dict, Iterable, Optional
+from typing import Union, Tuple, Dict, Iterable, Callable, Optional, Any
+from inspect import signature
 
 import pygame
 
@@ -10,20 +11,21 @@ from pygame_gui.core.drawable_shapes import EllipseDrawableShape, RoundedRectang
 from pygame_gui.core.drawable_shapes import RectDrawableShape
 from pygame_gui.core.interfaces import IContainerLikeInterface, IUIManagerInterface
 from pygame_gui.core.ui_element import UIElement
+from pygame_gui.core.gui_type_hints import Coordinate, RectLike
 
 
 class UIButton(UIElement):
     """
     A push button, a lot of the appearance of the button, including images to be displayed, is
-    setup via the theme file. This button is designed to be pressed, do something, and then reset -
+    set up via the theme file. This button is designed to be pressed, do something, and then reset -
     rather than to be toggled on or off.
 
     The button element is reused throughout the UI as part of other elements as it happens to be a
     very flexible interactive element.
 
     :param relative_rect: Normally a rectangle describing the position (relative to its container) and
-                          dimensions. Also accepts a position Tuple, or Vector2 where the dimensions
-                          will be dynamic depending on the button's contents. Dynamic dimensions can
+                          dimensions. Also accepts a position Coordinate where the dimensions
+                          will be dynamic depending on the text contents. Dynamic dimensions can
                           be requested by setting the required dimension to -1.
     :param text: Text for the button.
     :param manager: The UIManager that manages this element. If not provided or set to None,
@@ -32,21 +34,22 @@ class UIButton(UIElement):
                       will be the root window's container.
     :param tool_tip_text: Optional tool tip text, can be formatted with HTML. If supplied will
                           appear on hover.
-    :param starting_height: The height in layers above it's container that this element will be
+    :param starting_height: The height in layers above its container that this element will be
                             placed.
     :param parent_element: The element this element 'belongs to' in the theming hierarchy.
-    :param object_id: A custom defined ID for fine tuning of theming.
+    :param object_id: A custom defined ID for fine-tuning of theming.
     :param anchors: A dictionary describing what this element's relative_rect is relative to.
-    :param allow_double_clicks: Enables double clicking on buttons which will generate a
+    :param allow_double_clicks: Enables double-clicking on buttons which will generate a
                                 unique event.
     :param visible: Whether the element is visible by default. Warning - container visibility may
                     override this.
+    :param command: Functions to be called when an event is triggered by this element.
     :param text_kwargs: a dictionary of variable arguments to pass to the translated string
                         useful when you have multiple translations that need variables inserted
                         in the middle.
     """
 
-    def __init__(self, relative_rect: Union[pygame.Rect, Tuple[float, float], pygame.Vector2],
+    def __init__(self, relative_rect: Union[RectLike, Coordinate],
                  text: str,
                  manager: Optional[IUIManagerInterface] = None,
                  container: Optional[IContainerLikeInterface] = None,
@@ -59,40 +62,33 @@ class UIButton(UIElement):
                  generate_click_events_from: Iterable[int] = frozenset([pygame.BUTTON_LEFT]),
                  visible: int = 1,
                  *,
+                 command: Union[Callable, Dict[int, Callable]] = None,
                  tool_tip_object_id: Optional[ObjectID] = None,
                  text_kwargs: Optional[Dict[str, str]] = None,
                  tool_tip_text_kwargs: Optional[Dict[str, str]] = None,
+                 max_dynamic_width: Optional[int] = None
                  ):
 
-        rel_rect = (relative_rect if isinstance(relative_rect, pygame.Rect)
+        rel_rect = (relative_rect if len(relative_rect) == 4
                     else pygame.Rect(relative_rect, (-1, -1)))
         super().__init__(rel_rect,
                          manager, container,
                          starting_height=starting_height,
                          layer_thickness=1,
                          anchors=anchors,
-                         visible=visible)
-
-        self._create_valid_ids(container=container,
-                               parent_element=parent_element,
-                               object_id=object_id,
-                               element_id='button')
+                         visible=visible,
+                         parent_element=parent_element,
+                         object_id=object_id,
+                         element_id=['button'])
 
         self.text = text
         self.text_kwargs = {}
         if text_kwargs is not None:
             self.text_kwargs = text_kwargs
 
-        self.dynamic_width = False
-        self.dynamic_height = False
         self.dynamic_dimensions_orig_top_left = rel_rect.topleft
         # support for an optional 'tool tip' element attached to this button
-        self.tool_tip_text = tool_tip_text
-        self.tool_tip_text_kwargs = {}
-        if tool_tip_text_kwargs is not None:
-            self.tool_tip_text_kwargs = tool_tip_text_kwargs
-        self.tool_tip = None
-        self.tool_tip_object_id = tool_tip_object_id
+        self.set_tooltip(tool_tip_text, tool_tip_object_id, tool_tip_text_kwargs)
         self.ui_root_container = self.ui_manager.get_root_container()
 
         # Some different states our button can be in, could use a state machine for this
@@ -102,9 +98,6 @@ class UIButton(UIElement):
         self.is_selected = False
         # Used to check button pressed without going through pygame.Event system
         self.pressed_event = False
-
-        # time the hovering
-        self.hover_time = 0.0
 
         # timer for double clicks
         self.last_click_button = None
@@ -131,8 +124,6 @@ class UIButton(UIElement):
         self.selected_image = None
         self.disabled_image = None
 
-        self.tool_tip_delay = 1.0
-
         self.text_horiz_alignment = 'center'
         self.text_vert_alignment = 'center'
         self.text_horiz_alignment_padding = 0
@@ -141,8 +132,20 @@ class UIButton(UIElement):
         self.shape = 'rectangle'
         self.text_shadow_size = 0
         self.text_shadow_offset = (0, 0)
+        self.max_dynamic_width = max_dynamic_width
 
         self.state_transitions = {}
+        
+        self._handler = {}
+        if command is not None:
+            if callable(command):
+                self.bind(UI_BUTTON_PRESSED, command)
+            else:
+                for key, value in command.items():
+                    self.bind(key, value)
+                        
+        if UI_BUTTON_DOUBLE_CLICKED in self._handler:
+            self.allow_double_clicks = True
 
         self.rebuild_from_changed_theme_data()
 
@@ -205,19 +208,17 @@ class UIButton(UIElement):
         Overrides the standard sprite kill method to also kill any tooltips belonging to
         this button.
         """
-        if self.tool_tip is not None:
-            self.tool_tip.kill()
         super().kill()
 
     def hover_point(self, hover_x: int, hover_y: int) -> bool:
         """
         Tests if a position should be considered 'hovering' the button. Normally this just means
         our mouse pointer is inside the buttons rectangle, however if we are holding onto the
-        button for a purpose(e.g. dragging a window around by it's menu bar) the hover radius can
-        be made to grow so we don't keep losing touch with whatever we are moving.
+        button for a purpose(e.g. dragging a window around by its menu bar) the hover radius can
+        be made to grow, so we don't keep losing touch with whatever we are moving.
 
-        :param hover_x: horizontal pixel co-ordinate to test.
-        :param hover_y: vertical pixel co-ordinate to test
+        :param hover_x: horizontal pixel coordinate to test.
+        :param hover_y: vertical pixel coordinate to test
 
         :return: Returns True if we are hovering.
 
@@ -225,8 +226,7 @@ class UIButton(UIElement):
         if self.held:
             return self.in_hold_range((hover_x, hover_y))
         else:
-            return (self.drawable_shape.collide_point((hover_x, hover_y)) and
-                    bool(self.ui_container.rect.collidepoint(hover_x, hover_y)))
+            return super().hover_point(hover_x, hover_y)
 
     def can_hover(self) -> bool:
         """
@@ -243,8 +243,8 @@ class UIButton(UIElement):
         Called when we enter the hover state, it sets the colours and image of the button
         to the appropriate values and redraws it.
         """
+        super().on_hovered()
         self.drawable_shape.set_active_state('hovered')
-        self.hover_time = 0.0
 
         # old event to remove in 0.8.0
         event_data = {'user_type': OldType(UI_BUTTON_ON_HOVERED),
@@ -256,39 +256,14 @@ class UIButton(UIElement):
                       'ui_object_id': self.most_specific_combined_id}
         pygame.event.post(pygame.event.Event(UI_BUTTON_ON_HOVERED, event_data))
 
-    def while_hovering(self, time_delta: float,
-                       mouse_pos: Union[pygame.math.Vector2, Tuple[int, int], Tuple[float, float]]):
-        """
-        Called while we are in the hover state. It will create a tool tip if we've been in the
-        hover state for a while, the text exists to create one and we haven't created one already.
-
-        :param time_delta: Time in seconds between calls to update.
-        :param mouse_pos: The current position of the mouse.
-
-        """
-        if (self.tool_tip is None and self.tool_tip_text is not None and
-                self.hover_time > self.tool_tip_delay):
-            hover_height = int(self.rect.height / 2)
-            self.tool_tip = self.ui_manager.create_tool_tip(text=self.tool_tip_text,
-                                                            position=(mouse_pos[0],
-                                                                      self.rect.centery),
-                                                            hover_distance=(0,
-                                                                            hover_height),
-                                                            parent_element=self,
-                                                            object_id=self.tool_tip_object_id,
-                                                            text_kwargs=self.tool_tip_text_kwargs)
-
-        self.hover_time += time_delta
-
     def on_unhovered(self):
         """
         Called when we leave the hover state. Resets the colours and images to normal and kills any
         tooltip that was created while we were hovering the button.
         """
-        self.drawable_shape.set_active_state(self._get_appropriate_state_name())
-        if self.tool_tip is not None:
-            self.tool_tip.kill()
-            self.tool_tip = None
+        super().on_unhovered()
+        if self.drawable_shape is not None:
+            self.drawable_shape.set_active_state(self._get_appropriate_state_name())
 
         # old event to remove in 0.8.0
         event_data = {'user_type': OldType(UI_BUTTON_ON_UNHOVERED),
@@ -300,6 +275,21 @@ class UIButton(UIElement):
         event_data = {'ui_element': self,
                       'ui_object_id': self.most_specific_combined_id}
         pygame.event.post(pygame.event.Event(UI_BUTTON_ON_UNHOVERED, event_data))
+
+    def _get_appropriate_state_name(self):
+        """
+        Returns a string representing the appropriate state for the widgets DrawableShapes.
+        Currently only returns either 'normal' or 'disabled' based on is_enabled.
+        """
+
+        if self.is_enabled:
+            if self.is_selected:
+                return "selected"
+            elif self.hovered:
+                return "hovered"
+            else:
+                return "normal"
+        return "disabled"
 
     def update(self, time_delta: float):
         """
@@ -328,7 +318,7 @@ class UIButton(UIElement):
 
         :param event: The event to process.
 
-        :return: Return True if we want to consume this event so it is not passed on to the
+        :return: Return True if we want to consume this event, so it is not passed on to the
                  rest of the UI.
 
         """
@@ -340,37 +330,16 @@ class UIButton(UIElement):
                 if self.is_enabled:
                     if (self.allow_double_clicks and self.last_click_button == event.button and
                             self.double_click_timer <= self.ui_manager.get_double_click_time()):
-                        # old event to remove in 0.8.0
-                        event_data = {'user_type': OldType(UI_BUTTON_DOUBLE_CLICKED),
-                                      'ui_element': self,
-                                      'ui_object_id': self.most_specific_combined_id}
-                        pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
-
-                        # new event
-                        event_data = {'ui_element': self,
-                                      'ui_object_id': self.most_specific_combined_id,
-                                      'mouse_button': event.button}
-                        pygame.event.post(pygame.event.Event(UI_BUTTON_DOUBLE_CLICKED, event_data))
+                        self.on_self_event(UI_BUTTON_DOUBLE_CLICKED, {'mouse_button': event.button})
                     else:
-                        # old event to remove in 0.8.0
-                        event_data = {'user_type': OldType(UI_BUTTON_START_PRESS),
-                                      'ui_element': self,
-                                      'ui_object_id': self.most_specific_combined_id}
-                        pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
-
-                        # new event
-                        event_data = {'ui_element': self,
-                                      'ui_object_id': self.most_specific_combined_id,
-                                      'mouse_button': event.button}
-                        pygame.event.post(pygame.event.Event(UI_BUTTON_START_PRESS, event_data))
+                        self.on_self_event(UI_BUTTON_START_PRESS, {'mouse_button': event.button})
                         self.double_click_timer = 0.0
                         self.last_click_button = event.button
                         self.held = True
+                        self.hovered = False
+                        self.on_unhovered()
                         self._set_active()
-                        self.hover_time = 0.0
-                        if self.tool_tip is not None:
-                            self.tool_tip.kill()
-                            self.tool_tip = None
+
                 consumed_event = True
         if event.type == pygame.MOUSEBUTTONUP and event.button in self.generate_click_events_from:
             scaled_mouse_pos = self.ui_manager.calculate_scaled_mouse_position(event.pos)
@@ -381,18 +350,7 @@ class UIButton(UIElement):
                 self._set_inactive()
                 consumed_event = True
                 self.pressed_event = True
-
-                # old event
-                event_data = {'user_type': OldType(UI_BUTTON_PRESSED),
-                              'ui_element': self,
-                              'ui_object_id': self.most_specific_combined_id}
-                pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
-
-                # new event
-                event_data = {'ui_element': self,
-                              'ui_object_id': self.most_specific_combined_id,
-                              'mouse_button': event.button}
-                pygame.event.post(pygame.event.Event(UI_BUTTON_PRESSED, event_data))
+                self.on_self_event(UI_BUTTON_PRESSED, {'mouse_button': event.button})
 
             if self.is_enabled and self.held:
                 self.held = False
@@ -400,6 +358,60 @@ class UIButton(UIElement):
                 consumed_event = True
 
         return consumed_event
+    
+    def bind(self, event: int, function: Callable = None):
+        """
+        Bind a function to an element event.
+
+        :param event: The event to bind.
+
+        :param function: The function to bind. None to unbind.
+
+        """
+        if function is None:
+            self._handler.pop(event, None)
+            return
+
+        if callable(function):
+            num_params = len(signature(function).parameters)
+            if num_params == 1:
+                self._handler[event] = function
+            elif num_params == 0:
+                self._handler[event] = lambda _: function()
+            else:
+                raise ValueError("Command function signatures can have 0 or 1 parameter. "
+                                 "If one parameter is set it will contain data for the id of the mouse button used "
+                                 "to trigger this click event.")
+        else:
+            raise TypeError("Command function must be callable")
+    
+    def on_self_event(self, event: int, data: Dict[str, Any] = None):
+        """
+        Called when an event is triggered by this element. Handles these events either by posting the event back
+        to the event queue, or by running a function supplied by the user.
+
+        :param event: The event triggered.
+
+        :param data: event data
+
+        """
+        if data is None:
+            data = {}
+            
+        if event in self._handler:
+            self._handler[event](data)
+        else:
+            # old event to remove in 0.8.0
+            event_data = {'user_type': OldType(event),
+                          'ui_element': self,
+                          'ui_object_id': self.most_specific_combined_id}
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+
+            # new event
+            event_data = data
+            event_data.update({'ui_element': self,
+                               'ui_object_id': self.most_specific_combined_id})
+            pygame.event.post(pygame.event.Event(event, event_data))
 
     def check_pressed(self) -> bool:
         """
@@ -416,7 +428,8 @@ class UIButton(UIElement):
         """
         if self.is_enabled:
             self.is_enabled = False
-            self.drawable_shape.set_active_state('disabled')
+            if self.drawable_shape is not None:
+                self.drawable_shape.set_active_state('disabled')
 
             # clear other button state
             self.held = False
@@ -426,11 +439,12 @@ class UIButton(UIElement):
 
     def enable(self):
         """
-        Re-enables the button so we can once again interact with it.
+        Re-enables the button, so we can once again interact with it.
         """
         if not self.is_enabled:
             self.is_enabled = True
-            self.drawable_shape.set_active_state('normal')
+            if self.drawable_shape is not None:
+                self.drawable_shape.set_active_state('normal')
 
     def _set_active(self):
         """
@@ -486,7 +500,7 @@ class UIButton(UIElement):
             any_changed = True
 
         if any_changed:
-            if self.dynamic_width:
+            if self.dynamic_width or self.dynamic_height:
                 self.rebuild()
             else:
                 self.drawable_shape.set_text(translate(self.text, **self.text_kwargs))
@@ -609,7 +623,7 @@ class UIButton(UIElement):
 
         if self._check_shape_theming_changed(defaults={'border_width': 1,
                                                        'shadow_width': 2,
-                                                       'shape_corner_radius': 2}):
+                                                       'shape_corner_radius': [2, 2, 2, 2]}):
             has_any_changed = True
 
         if self._check_misc_theme_data_changed(attribute_name='tool_tip_delay',
@@ -692,11 +706,6 @@ class UIButton(UIElement):
         A complete rebuild of the drawable shape used by this button.
 
         """
-        self.rect.width = -1 if self.dynamic_width else self.rect.width
-        self.relative_rect.width = -1 if self.dynamic_width else self.relative_rect.width
-
-        self.rect.height = -1 if self.dynamic_height else self.rect.height
-        self.relative_rect.height = -1 if self.dynamic_height else self.relative_rect.height
 
         theming_parameters = {'normal_bg': self.colours['normal_bg'],
                               'normal_text': self.colours['normal_text'],
@@ -740,37 +749,52 @@ class UIButton(UIElement):
                               'shape_corner_radius': self.shape_corner_radius,
                               'transitions': self.state_transitions}
 
+        drawable_shape_rect = self.rect.copy()
+        if self.dynamic_width:
+            drawable_shape_rect.width = -1
+            if self.max_dynamic_width is not None:
+                theming_parameters["max_text_width"] = self.max_dynamic_width
+        if self.dynamic_height:
+            drawable_shape_rect.height = -1
+
         if self.shape == 'rectangle':
-            self.drawable_shape = RectDrawableShape(self.rect, theming_parameters,
+            self.drawable_shape = RectDrawableShape(drawable_shape_rect, theming_parameters,
                                                     ['normal', 'hovered', 'disabled',
                                                      'selected', 'active'], self.ui_manager)
         elif self.shape == 'ellipse':
-            self.drawable_shape = EllipseDrawableShape(self.rect, theming_parameters,
+            self.drawable_shape = EllipseDrawableShape(drawable_shape_rect, theming_parameters,
                                                        ['normal', 'hovered', 'disabled',
                                                         'selected', 'active'], self.ui_manager)
         elif self.shape == 'rounded_rectangle':
-            self.drawable_shape = RoundedRectangleShape(self.rect, theming_parameters,
+            self.drawable_shape = RoundedRectangleShape(drawable_shape_rect, theming_parameters,
                                                         ['normal', 'hovered', 'disabled',
                                                          'selected', 'active'], self.ui_manager)
 
+        if not self.is_enabled:
+            if self.drawable_shape is not None:
+                self.drawable_shape.set_active_state('disabled')
+
         self.on_fresh_drawable_shape_ready()
 
-        if self.relative_rect.width == -1 or self.relative_rect.height == -1:
-            self.dynamic_width = self.relative_rect.width == -1
-            self.dynamic_height = self.relative_rect.height == -1
+        self._on_contents_changed()
 
-            self.set_dimensions(self.image.get_size())
+    def _calc_dynamic_size(self):
+        if self.dynamic_width or self.dynamic_height:
+            if self.image.get_size() == (0, 0):
+                self._set_dimensions(self._get_pre_clipped_image_size())
+            else:
+                self._set_dimensions(self.image.get_size())
 
-            # if we have anchored the left side of our button to the right of it's container then
+            # if we have anchored the left side of our button to the right of its container then
             # changing the width is going to mess up the horiz position as well.
             new_left = self.relative_rect.left
             new_top = self.relative_rect.top
-            if self.anchors['left'] == 'right' and self.dynamic_width:
+            if 'left' in self.anchors and self.anchors['left'] == 'right' and self.dynamic_width:
                 left_offset = self.dynamic_dimensions_orig_top_left[0]
                 new_left = left_offset - self.relative_rect.width
-            # if we have anchored the top side of our button to the bottom of it's container then
+            # if we have anchored the top side of our button to the bottom of its container then
             # changing the height is going to mess up the vert position as well.
-            if self.anchors['top'] == 'bottom' and self.dynamic_height:
+            if 'top' in self.anchors and self.anchors['top'] == 'bottom' and self.dynamic_height:
                 top_offset = self.dynamic_dimensions_orig_top_left[1]
                 new_top = top_offset - self.relative_rect.height
 
@@ -790,7 +814,7 @@ class UIButton(UIElement):
             self.font = font
             self.rebuild()
         else:
-            if self.dynamic_width:
+            if self.dynamic_width or self.dynamic_height:
                 self.rebuild()
             else:
                 self.drawable_shape.set_text(translate(self.text, **self.text_kwargs))

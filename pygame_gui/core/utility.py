@@ -20,9 +20,10 @@ from queue import Queue
 import i18n
 
 import pygame
-import pygame.freetype
 
-from pygame_gui.core.interfaces import IUIManagerInterface
+from pygame_gui.core.interfaces import IUIManagerInterface, IGUIFontInterface
+from pygame_gui.core.gui_font_freetype import GUIFontFreetype
+from pygame_gui.core.gui_font_pygame import GUIFontPygame
 
 
 __default_manager = None  # type: Optional[IUIManagerInterface]
@@ -172,7 +173,7 @@ elif PLATFORM == 'LINUX':
             stdout, _ = process.communicate()
             return stdout.decode('utf-8')
 
-else:
+elif PLATFORM == 'DARWIN':
     def __mac_copy(data: str):
         with subprocess.Popen('pbcopy',
                               env={'LANG': 'en_US.UTF-8'},
@@ -184,37 +185,56 @@ else:
         return subprocess.check_output(
             'pbpaste', env={'LANG': 'en_US.UTF-8'}).decode('utf-8')
 
+else:
+    def __unknown_copy(data: str):
+        # copy not supported on this platform
+        pass
+
+    def __unknown_paste():
+        # paste not supported on this platform
+        return ""
+
 
 def clipboard_copy(data: str):
     """
-    Hopefully cross platform, copy to a clipboard.
+    Hopefully cross-platform, copy to a clipboard.
 
     :return: A platform specific copy function.
 
     """
-    current_platform = platform.system().upper()
-    if current_platform == 'WINDOWS':
-        __windows_copy(data)
-    elif current_platform == 'LINUX':
-        __linux_copy(data)
+    if (pygame.vernum.major == 2 and pygame.vernum.minor >= 2) or pygame.vernum.major > 2:
+        pygame.scrap.put_text(data)
     else:
-        __mac_copy(data)
+        current_platform = platform.system().upper()
+        if current_platform == 'WINDOWS':
+            __windows_copy(data)
+        elif current_platform == 'LINUX':
+            __linux_copy(data)
+        elif current_platform == 'DARWIN':
+            __mac_copy(data)
+        else:
+            __unknown_copy(data)
 
 
 def clipboard_paste():
     """
-    Hopefully cross platform, paste from a clipboard.
+    Hopefully cross-platform, paste from a clipboard.
 
     :return: A platform specific paste function.
 
     """
-    current_platform = platform.system().upper()
-    if current_platform == 'WINDOWS':
-        return __windows_paste()
-    elif current_platform == 'LINUX':
-        return __linux_paste()
+    if (pygame.vernum.major == 2 and pygame.vernum.minor >= 2) or pygame.vernum.major > 2:
+        return pygame.scrap.get_text()
     else:
-        return __mac_paste()
+        current_platform = platform.system().upper()
+        if current_platform == 'WINDOWS':
+            return __windows_paste()
+        elif current_platform == 'LINUX':
+            return __linux_paste()
+        elif current_platform == 'DARWIN':
+            return __mac_paste()
+        else:
+            return __unknown_paste()
 
 
 def create_resource_path(relative_path: Union[str, Path]):
@@ -259,38 +279,14 @@ def restore_premul_col(premul_colour: pygame.Color) -> pygame.Color:
                         premul_colour.a)
 
 
-def premul_alpha_surface(surface: pygame.surface.Surface) -> pygame.surface.Surface:
-    """
-    Perform a pre-multiply alpha operation on a pygame surface's colours.
-    """
-    surf_copy = surface.copy()
-    surf_copy.fill(pygame.Color('#FFFFFF00'), special_flags=pygame.BLEND_RGB_MAX)
-    manipulate_surf = pygame.surface.Surface(surf_copy.get_size(),
-                                             flags=pygame.SRCALPHA, depth=32)
-    # Can't be exactly transparent black or we trigger SDL1 'bug'
-    manipulate_surf.fill(pygame.Color('#00000001'))
-    manipulate_surf.blit(surf_copy, (0, 0))
-    surface.blit(manipulate_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-    return surface
-
-
-def render_white_text_alpha_black_bg(font: pygame.freetype.Font,
+def render_white_text_alpha_black_bg(font: IGUIFontInterface,
                                      text: str) -> pygame.surface.Surface:
     """
     Render text with a zero alpha background with 0 in the other colour channels. Appropriate for
     use with BLEND_PREMULTIPLIED and for colour/gradient multiplication.
     """
-    text_surface, text_rect = font.render(text,
-                                          pygame.Color('#FFFFFFFF'),
-                                          pygame.Color('#00000001'))
-    text_rect.height -= 1
-    text_rect.topleft = (0, 0)
-    final_surface = pygame.surface.Surface(text_rect.size,
-                                           flags=pygame.SRCALPHA, depth=32)
-    final_surface.fill(pygame.Color('#00000001'))
-    final_surface.blit(text_surface, text_rect, special_flags=pygame.BLEND_PREMULTIPLIED)
-
-    return final_surface
+    text_surface = font.render_premul(text, pygame.Color("white"))
+    return text_surface
 
 
 def basic_blit(destination: pygame.surface.Surface,
@@ -383,7 +379,9 @@ class FontResource:
         self.style = style
         self.location = location[0]
         self.force_style = location[1]
-        self.loaded_font = None  # type: Union[pygame.freetype.Font, None]
+        self.loaded_font = None  # type: Union[IGUIFontInterface, None]
+
+        self.font_type_to_use = "pygame"
 
     def load(self):
         """
@@ -392,9 +390,7 @@ class FontResource:
         :return: An exception. We don't handle this here because exception handling in threads
                  seems to be a bit of a mess.
         """
-
         location = self.location
-
         if sys.platform in ('emscripten','wasi',):
             if isinstance(self.location, PackageResource):
                 location = str(resources.files(self.location.package)  / self.location.resource )
@@ -404,37 +400,47 @@ class FontResource:
                 with open(location, wb) as file:
                     file.write(location)
             print("407:",location)
-        try:
-            if isinstance(location, str):
-                self.loaded_font = pygame.freetype.Font(location, self.size, resolution=72)
-                self.loaded_font.pad = True
-                self.loaded_font.origin = True
-                if self.force_style:
-                    self.loaded_font.strong = self.style['bold']
-                    self.loaded_font.oblique = self.style['italic']
-            elif isinstance(self.location, PackageResource):
-                self.loaded_font = pygame.freetype.Font(
-                    io.BytesIO((resources.files(self.location.package) /
-                                self.location.resource).read_bytes()),
-                    self.size, resolution=72)
-                self.loaded_font.pad = True
-                self.loaded_font.origin = True
-                if self.force_style:
-                    self.loaded_font.strong = self.style['bold']
-                    self.loaded_font.oblique = self.style['italic']
-            elif isinstance(self.location, bytes):
-                file_obj = io.BytesIO(base64.standard_b64decode(self.location))
-                self.loaded_font = pygame.freetype.Font(file_obj, self.size, resolution=72)
-                self.loaded_font.pad = True
-                self.loaded_font.origin = True
-                if self.force_style:
-                    self.loaded_font.strong = self.style['bold']
-                    self.loaded_font.oblique = self.style['italic']
-        except (pygame.error, FileNotFoundError, OSError):
-            return FileNotFoundError('Unable to load resource with path: ' + str(self.location))
+            self.location = location
 
-        # no error
-        return None
+        error = None
+        if isinstance(self.location, PackageResource):
+            try:
+                if self.font_type_to_use == "freetype":
+                    self.loaded_font = GUIFontFreetype(
+                        io.BytesIO((resources.files(self.location.package) /
+                                    self.location.resource).read_bytes()),
+                        self.size, self.force_style, self.style)
+                elif self.font_type_to_use == "pygame":
+                    self.loaded_font = GUIFontPygame(
+                        io.BytesIO((resources.files(self.location.package) /
+                                    self.location.resource).read_bytes()),
+                        self.size, self.force_style, self.style)
+            except (pygame.error, FileNotFoundError, OSError):
+                error = FileNotFoundError('Unable to load resource with path: ' +
+                                          str(self.location))
+
+        elif isinstance(self.location, str):
+            try:
+                if self.font_type_to_use == "freetype":
+                    self.loaded_font = GUIFontFreetype(self.location, self.size, self.force_style, self.style)
+                elif self.font_type_to_use == "pygame":
+                    self.loaded_font = GUIFontPygame(self.location, self.size, self.force_style, self.style)
+            except (pygame.error, FileNotFoundError, OSError):
+                error = FileNotFoundError('Unable to load resource with path: ' +
+                                          str(self.location))
+
+        elif isinstance(self.location, bytes):
+            try:
+                file_obj = io.BytesIO(base64.standard_b64decode(self.location))
+                if self.font_type_to_use == "freetype":
+                    self.loaded_font = GUIFontFreetype(file_obj, self.size, self.force_style, self.style)
+                elif self.font_type_to_use == "pygame":
+                    self.loaded_font = GUIFontPygame(file_obj, self.size, self.force_style, self.style)
+            except (pygame.error, FileNotFoundError, OSError):
+                error = FileNotFoundError('Unable to load resource with path: ' +
+                                          str(self.location))
+
+        return error
 
 
 class ImageResource:
@@ -449,10 +455,12 @@ class ImageResource:
     """
     def __init__(self,
                  image_id: str,
-                 location: Union[PackageResource, str]):
+                 location: Union[PackageResource, str],
+                 premultiplied: bool):
         self.image_id = image_id
         self.location = location
         self.loaded_surface: Optional[pygame.Surface] = None
+        self.is_file_premultiplied = premultiplied
 
     def load(self) -> Union[Exception, None]:
         """
@@ -479,8 +487,8 @@ class ImageResource:
                                           str(self.location))
 
         # perform pre-multiply alpha operation
-        if error is None and self.loaded_surface is not None:
-            premul_alpha_surface(self.loaded_surface)
+        if error is None and self.loaded_surface is not None and not self.is_file_premultiplied:
+            self.loaded_surface = self.loaded_surface.premul_alpha()
 
         return error
 
@@ -617,9 +625,3 @@ def translate(text_to_translate: str, **keywords) -> str:
              is passed back.
     """
     return i18n.t(text_to_translate, **keywords)
-
-
-
-
-
-

@@ -1,12 +1,14 @@
+import typing
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, Union
 
 import pygame
 
 from pygame_gui.core.interfaces.element_interface import IUIElementInterface
+from pygame_gui.core.gui_type_hints import Coordinate
 
 
-class IUIContainerInterface(metaclass=ABCMeta):
+class IUIContainerInterface(IUIElementInterface, metaclass=ABCMeta):
     """
     Interface for the actual container class. Not to be confused with the IContainerLikeInterface
     which is an interface for all the things we can treat like containers when creating elements.
@@ -71,9 +73,7 @@ class IUIContainerInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def set_position(self, position: Union[pygame.math.Vector2,
-                                           Tuple[int, int],
-                                           Tuple[float, float]]):
+    def set_position(self, position: Coordinate):
         """
         Set the absolute position of this container - it is usually less chaotic to deal with
         setting relative positions.
@@ -83,9 +83,7 @@ class IUIContainerInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def set_relative_position(self, position: Union[pygame.math.Vector2,
-                                                    Tuple[int, int],
-                                                    Tuple[float, float]]):
+    def set_relative_position(self, position: Coordinate):
         """
         Set the position of this container, relative to the container it is within.
 
@@ -94,13 +92,12 @@ class IUIContainerInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def set_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                               Tuple[int, int],
-                                               Tuple[float, float]]):
+    def set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
         """
         Set the dimension of this container and update the positions of elements within it
         accordingly.
 
+        :param clamp_to_container:
         :param dimensions: the new dimensions.
 
         """
@@ -164,14 +161,44 @@ class IUIContainerInterface(metaclass=ABCMeta):
         """
         Obtain the current image clipping rect.
 
-        :return: The current clipping rect. May be None.
+        :return: The current clipping rect. It may be None.
 
+        """
+
+    def on_contained_elements_changed(self, target: IUIElementInterface) -> None:
+        """
+        Update the contents of this container that one of their layout anchors may have moved, or
+        been resized.
+
+        :param target: the UI element that has been benn moved or resized.
+        """
+
+    def calc_add_element_changes_thickness(self, element: IUIElementInterface):
+        """
+        This function checks if a single added element will increase the containers thickness
+        and if so updates containers recursively.
+
+        :param element: the element to check.
+        """
+
+    @abstractmethod
+    def __iter__(self) -> typing.Iterator[IUIElementInterface]:
+        """
+        Iterates over the elements within the container-like interface.
+        This method allows iterating over the children elements within the container.
+        """
+        
+    @abstractmethod
+    def __contains__(self, item: IUIElementInterface) -> bool:
+        """
+        Checks if the given element is contained within the container.
+        :return bool: Return True if the element is found, False otherwise.
         """
 
 
 class IContainerLikeInterface(metaclass=ABCMeta):
     """
-        A meta class that defines the interface for containers used by elements.
+        A metaclass that defines the interface for containers used by elements.
 
         This interface lets us treat classes like UIWindows and UIPanels like containers for
         elements even though they actually pass this functionality off to the proper UIContainer
@@ -198,4 +225,25 @@ class IContainerLikeInterface(metaclass=ABCMeta):
         Hides the container, which means the container will not get drawn and will not
         process events. Should also hide all the children elements.
         If the container was hidden before - ignore.
+        """
+        
+    @abstractmethod
+    def __iter__(self) -> typing.Iterator[IUIElementInterface]:
+        """
+        Iterates over the elements within the container-like interface. 
+        This method allows iterating over the children elements within the container.
+        """
+        
+    @abstractmethod
+    def __contains__(self, item: IUIElementInterface) -> bool:
+        """
+        Checks if the given element is contained within the container.
+        :return bool: Return True if the element is found, False otherwise.
+        """
+
+    def are_contents_hovered(self) -> bool:
+        """
+        Are any of the elements in the container hovered? Used for handling mousewheel events.
+
+        :return: True if one of the elements is hovered, False otherwise.
         """

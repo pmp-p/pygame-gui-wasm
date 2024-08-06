@@ -7,6 +7,7 @@ from pygame_gui.core import ObjectID
 from pygame_gui._constants import UI_CONFIRMATION_DIALOG_CONFIRMED, UI_BUTTON_PRESSED, OldType
 from pygame_gui.core.interfaces import IUIManagerInterface
 from pygame_gui.elements import UIWindow, UIButton, UITextBox
+from pygame_gui.core.gui_type_hints import RectLike
 
 
 class UIConfirmationDialog(UIWindow):
@@ -22,18 +23,18 @@ class UIConfirmationDialog(UIWindow):
     :param manager: The UIManager that manages this UIElement. If not provided or set to None,
                     it will try to use the first UIManager that was created by your application.
     :param window_title: The title of the  window.
-    :param action_short_name: Short, one or two word description of action for button.
+    :param action_short_name: Short, one or two-word description of action for button.
     :param blocking: Whether this window should block all other mouse interactions with the GUI
                      until it is closed.
-    :param object_id: A custom defined ID for fine tuning of theming. Defaults to
+    :param object_id: A custom defined ID for fine-tuning of theming. Defaults to
                       '#confirmation_dialog'.
     :param visible: Whether the element is visible by default.
-    :param long_desc_text_kwargs: a dictionary of variable arguments to pass to the translated string
-                                  useful when you have multiple translations that need variables inserted
-                                  in the middle.
+    :param action_long_desc_text_kwargs: a dictionary of variable arguments to pass to the translated string
+                                         useful when you have multiple translations that need variables inserted
+                                         in the middle.
     """
 
-    def __init__(self, rect: pygame.Rect,
+    def __init__(self, rect: RectLike,
                  action_long_desc: str,
                  manager: Optional[IUIManagerInterface] = None,
                  *,
@@ -42,18 +43,21 @@ class UIConfirmationDialog(UIWindow):
                  blocking: bool = True,
                  object_id: Union[ObjectID, str] = ObjectID('#confirmation_dialog', None),
                  visible: int = 1,
-                 action_long_desc_text_kwargs: Optional[Dict[str, str]] = None
+                 action_long_desc_text_kwargs: Optional[Dict[str, str]] = None,
+                 always_on_top: bool = False
                  ):
 
         super().__init__(rect, manager,
                          window_display_title=window_title,
+                         element_id=['confirmation_dialog'],
                          object_id=object_id,
                          resizable=True,
-                         visible=visible)
+                         visible=visible,
+                         always_on_top=always_on_top)
 
         minimum_dimensions = (260, 200)
-        if rect.width < minimum_dimensions[0] or rect.height < minimum_dimensions[1]:
-            warn_string = ("Initial size: " + str(rect.size) +
+        if self.relative_rect.width < minimum_dimensions[0] or self.relative_rect.height < minimum_dimensions[1]:
+            warn_string = ("Initial size: " + str(self.relative_rect.size) +
                            " is less than minimum dimensions: " + str(minimum_dimensions))
             warnings.warn(warn_string, UserWarning)
         self.set_minimum_dimensions(minimum_dimensions)

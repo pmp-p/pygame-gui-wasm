@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pygame
 
+from pygame_gui.core.gui_type_hints import Coordinate, RectLike
 from pygame_gui.core.interfaces import IUIElementInterface
 from pygame_gui.core.interfaces import IContainerLikeInterface, IUIManagerInterface
 from pygame_gui.core.utility import render_white_text_alpha_black_bg
@@ -14,6 +15,7 @@ from pygame_gui.core.utility import get_default_manager
 from pygame_gui.core.object_id import ObjectID
 
 if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
     from pygame_gui.core.drawable_shapes.drawable_shape import DrawableShape
 
 
@@ -26,45 +28,369 @@ class UIElement(GUISprite, IUIElementInterface):
                           element's container.
     :param manager: The UIManager that manages this UIElement.
     :param container: A container that this element is contained in.
-    :param starting_height: Used to record how many layers above it's container this element
+    :param starting_height: Used to record how many layers above its container this element
                             should be. Normally 1.
     :param layer_thickness: Used to record how 'thick' this element is in layers. Normally 1.
     :param anchors: A dictionary describing what this element's relative_rect is relative to.
     :param visible: Whether the element is visible by default. Warning - container visibility may
                     override this.
+    :param parent_element: Element that this element 'belongs to' in theming. Elements inherit
+                    colours from parents.
+    :param object_id: An optional set of IDs to help distinguish this element from other elements.
+    :param element_id: A list of string ID representing this element's class.
     """
-    def __init__(self, relative_rect: Union[pygame.Rect, Tuple[int, int, int, int]],
+
+    def __init__(self, relative_rect: RectLike,
                  manager: Optional[IUIManagerInterface],
                  container: Optional[IContainerLikeInterface],
                  *,
                  starting_height: int,
                  layer_thickness: int,
-                 anchors: Dict[str, Union[str, 'UIElement']] = None,
-                 visible: int = 1):
+                 anchors: Optional[Dict[str, Union[str, IUIElementInterface]]] = None,
+                 visible: int = 1,
+                 parent_element: Optional[IUIElementInterface] = None,
+                 object_id: Union[ObjectID, str, None] = None,
+                 element_id: Optional[List[str]] = None,
+                 ignore_shadow_for_initial_size_and_pos: bool = False):
 
         self._layer = 0
         self.ui_manager = manager
+        self.ui_container: Optional[IContainerLikeInterface] = None
+        self.parent_element = parent_element
         if self.ui_manager is None:
             self.ui_manager = get_default_manager()
         if self.ui_manager is None:
             raise ValueError("Need to create at least one UIManager to create UIElements")
 
         super().__init__(self.ui_manager.get_sprite_group())
-        if isinstance(relative_rect, pygame.Rect):
-            self.relative_rect = relative_rect.copy()
-        else:
-            self.relative_rect = pygame.Rect(relative_rect)
-        self.rect = self.relative_rect.copy()
+
         self.ui_group = self.ui_manager.get_sprite_group()
         self.ui_theme = self.ui_manager.get_theme()
+
+        self.minimum_dimensions = (-1, -1)
 
         self.object_ids = None
         self.class_ids = None
         self.element_ids = None
+        self.element_base_ids = None
         self.combined_element_ids = None
         self.most_specific_combined_id = 'no_id'
 
+        # Themed parameters
+        self.shadow_width = None  # type: Union[None, int]
+        self.border_width = None  # type: Union[None, int]
+        self.shape_corner_radius: Optional[List[int]] = None
+
+        self.tool_tip_text = None
+        self.tool_tip_text_kwargs = None
+        self.tool_tip_object_id = None
+        self.tool_tip_delay = 1.0
+        self.tool_tip_wrap_width = None
+        self.tool_tip = None
+
+        element_ids = element_id
+        element_id = None
+        base_id = None
+        if element_ids is not None:
+            if len(element_ids) >= 1:
+                element_id = element_ids[0]
+
+            if len(element_ids) >= 2:
+                base_id = element_ids[1]
+
+            self._create_valid_ids(container=container,
+                                   parent_element=parent_element,
+                                   object_id=object_id,
+                                   element_id=element_id,
+                                   element_base_id=base_id)
+
+        if isinstance(relative_rect, pygame.Rect) or isinstance(relative_rect, pygame.FRect):
+            self.relative_rect = relative_rect.copy()
+        else:
+            self.relative_rect = pygame.Rect(relative_rect)
+
+        if ignore_shadow_for_initial_size_and_pos:
+            # need to expand our rect by the shadow size and adjust position by it as well.
+            self._check_shape_theming_changed(defaults={'border_width': 1,
+                                                        'shadow_width': 2,
+                                                        'shape_corner_radius': [2, 2, 2, 2]})
+            self.relative_rect.width += self.shadow_width * 2
+            self.relative_rect.height += self.shadow_width * 2
+            self.relative_rect.top -= self.shadow_width  # This will need to be changed when we can adjust the anchor source
+            self.relative_rect.left -= self.shadow_width  # This will need to be changed when we can adjust the anchor source
+
+        self.relative_rect.size = self._get_clamped_to_minimum_dimensions(self.relative_rect.size)
+        self.rect = self.relative_rect.copy()
+
+        self.dynamic_width = True if self.relative_rect.width == -1 else False
+        self.dynamic_height = True if self.relative_rect.height == -1 else False
+
         self.anchors = {}
+        self.set_anchors(anchors)
+
+        self.drawable_shape: Optional[DrawableShape] = None
+        self.image = None
+
+        if visible:
+            self.visible = True
+        else:
+            self.visible = False
+
+        self.blendmode = pygame.BLEND_PREMULTIPLIED
+        # self.source_rect = None
+
+        self.relative_bottom_margin = None
+        self.relative_right_margin = None
+
+        self.layer_thickness = layer_thickness
+        self.starting_height = starting_height
+
+        self.is_enabled = True
+        self._hovered = False
+        self.is_focused = False
+        self.hover_time = 0.0
+
+        self.pre_debug_image = None
+        self._pre_clipped_image = None
+
+        self._image_clip = None
+
+        self._visual_debug_mode = False
+
+        self._setup_container(container)
+
+        self.dirty = 1
+        self._setup_visibility(visible)
+
+        self._update_absolute_rect_position_from_anchors()
+
+        self._update_container_clip()
+
+        self._focus_set = {self}
+
+    @property
+    def hovered(self) -> bool:
+        return self._hovered
+
+    @hovered.setter
+    def hovered(self, value: bool):
+        self._hovered = value
+
+    def _get_clamped_to_minimum_dimensions(self, dimensions, clamp_to_container=False):
+        if self.ui_container is not None and clamp_to_container:
+            dimensions = (min(self.ui_container.get_container().get_rect().width,
+                              max(self.minimum_dimensions[0],
+                                  int(dimensions[0]))),
+                          min(self.ui_container.get_container().get_rect().height,
+                              max(self.minimum_dimensions[1],
+                                  int(dimensions[1]))))
+        else:
+            dimensions = (max(self.minimum_dimensions[0], int(dimensions[0])),
+                          max(self.minimum_dimensions[1], int(dimensions[1])))
+        return dimensions
+
+    def _on_contents_changed(self):
+        if self.dynamic_width or self.dynamic_height:
+            self._calc_dynamic_size()
+
+    def _calc_dynamic_size(self):
+        pass
+
+    def _set_dynamic_width(self, is_dynamic: bool = True):
+        self.dynamic_width = is_dynamic
+        if self.drawable_shape is not None:
+            self.drawable_shape.dynamic_width = is_dynamic
+
+    def _set_dynamic_height(self, is_dynamic: bool = True):
+        self.dynamic_height = is_dynamic
+        if self.drawable_shape is not None:
+            self.drawable_shape.dynamic_height = is_dynamic
+
+    @staticmethod
+    def _validate_horizontal_anchors(anchors: Dict[str, Union[str, IUIElementInterface]]):
+        # first make a dictionary of just the horizontal anchors
+        horizontal_anchors = {}
+
+        if 'left' in anchors:
+            horizontal_anchors.update({'left': anchors['left']})
+        if 'right' in anchors:
+            horizontal_anchors.update({'right': anchors['right']})
+        if 'centerx' in anchors:
+            horizontal_anchors.update({'centerx': anchors['centerx']})
+
+        valid_anchor_set = [{'left': 'left', 'right': 'left'},
+                            {'left': 'right', 'right': 'right'},
+                            {'left': 'left', 'right': 'right'},
+                            {'left': 'left'},
+                            {'right': 'right'},
+                            {'left': 'right'},
+                            {'right': 'left'},
+                            {'centerx': 'centerx'}
+                            ]
+
+        if horizontal_anchors in valid_anchor_set:
+            return True
+        elif len(horizontal_anchors) == 0:
+            return False  # no horizontal anchors so just use defaults
+        else:
+            warnings.warn("Supplied horizontal anchors are invalid, defaulting to left", category=UserWarning)
+            return False
+
+    @staticmethod
+    def _validate_vertical_anchors(anchors: Dict[str, Union[str, IUIElementInterface]]):
+        # first make a dictionary of just the vertical anchors
+        vertical_anchors = {}
+
+        if 'top' in anchors:
+            vertical_anchors.update({'top': anchors['top']})
+        if 'bottom' in anchors:
+            vertical_anchors.update({'bottom': anchors['bottom']})
+        if 'centery' in anchors:
+            vertical_anchors.update({'centery': anchors['centery']})
+
+        valid_anchor_set = [{'top': 'top', 'bottom': 'top'},
+                            {'top': 'bottom', 'bottom': 'bottom'},
+                            {'top': 'top', 'bottom': 'bottom'},
+                            {'top': 'top'},
+                            {'bottom': 'bottom'},
+                            {'top': 'bottom'},
+                            {'bottom': 'top'},
+                            {'centery': 'centery'}
+                            ]
+
+        if vertical_anchors in valid_anchor_set:
+            return True
+        elif len(vertical_anchors) == 0:
+            return False  # no vertical anchors so just use defaults
+        else:
+            warnings.warn("Supplied vertical anchors are invalid, defaulting to top", category=UserWarning)
+            return False
+
+    def _setup_visibility(self, visible):
+        if visible:
+            self.visible = True
+
+        if self.ui_container is not None and not self.ui_container.get_container().visible:
+            self.visible = False
+
+    def set_container(self, container: Union[None, IContainerLikeInterface]):
+        """
+        Switch the element to new container.
+        Remove the element from the old container and add it to the new container.
+
+        :param container: The new container to add.
+
+        """
+        if isinstance(self.ui_container, IContainerLikeInterface):
+            self.ui_container.get_container().remove_element(self)
+
+        self._setup_container(container)
+        self._update_absolute_rect_position_from_anchors()
+        self.rebuild_from_changed_theme_data()
+
+    def _setup_container(self, container: Optional[IContainerLikeInterface]):
+        if container is None:
+            # no container passed in so make it the root container
+            if self.ui_manager.get_root_container() is not None:
+                container = self.ui_manager.get_root_container()
+            else:
+                container = self
+        elif not isinstance(container, IContainerLikeInterface):
+            # oops, passed in something that wasn't a container so bail
+            raise ValueError("container parameter must be of type "
+                             "IContainerLikeInterface.")
+
+        # by this point container should be a valid container
+        self.ui_container = container.get_container()
+        if self.ui_container is not None and self.ui_container is not self:
+            self.ui_container.add_element(self)
+
+    def get_focus_set(self) -> Set[IUIElementInterface]:
+        return self._focus_set
+
+    def set_focus_set(self, focus_set: Optional[Set[IUIElementInterface]]):
+        if self.ui_manager.get_focus_set() is self._focus_set:
+            self.ui_manager.set_focus_set(focus_set)
+        self._focus_set = focus_set
+
+    def join_focus_sets(self, element: IUIElementInterface):
+        if self._focus_set is not None:
+            union_of_sets = set(self._focus_set | element.get_focus_set())
+            for item in union_of_sets:
+                item.set_focus_set(union_of_sets)
+
+    def remove_element_from_focus_set(self, element):
+        if self._focus_set is not None:
+            self._focus_set.discard(element)
+
+    def get_relative_rect(self) -> pygame.Rect:
+        """
+        The relative positioning rect.
+
+        :return: A pygame rect.
+
+        """
+        return self.relative_rect
+
+    def get_abs_rect(self) -> pygame.Rect:
+        """
+        The absolute positioning rect.
+
+        :return: A pygame rect.
+
+        """
+        return self.rect
+
+    def get_element_base_ids(self) -> List[str]:
+        """
+        A list of all the element base IDs in this element's theming/event hierarchy.
+
+        :return: a list of strings, one for each element in the hierarchy.
+        """
+        return self.element_base_ids
+
+    def get_element_ids(self) -> List[str]:
+        """
+        A list of all the element IDs in this element's theming/event hierarchy.
+
+        :return: a list of strings, one for each element in the hierarchy.
+        """
+        return self.element_ids
+
+    def get_class_ids(self) -> List[str]:
+        """
+        A list of all the class IDs in this element's theming/event hierarchy.
+
+        :return: a list of strings, one for each element in the hierarchy.
+        """
+        return self.class_ids
+
+    def get_object_ids(self) -> List[str]:
+        """
+        A list of all the object IDs in this element's theming/event hierarchy.
+
+        :return: a list of strings, one for each element in the hierarchy.
+        """
+        return self.object_ids
+
+    def get_anchors(self) -> Dict[str, Union[str, IUIElementInterface]]:
+        """
+        A dictionary containing all the anchors defining what the relative rect is relative to
+
+        :return: A dictionary containing all the anchors defining what the relative rect is relative to
+        """
+        return self.anchors
+
+    def set_anchors(self, anchors: Optional[Dict[str, Union[str, IUIElementInterface]]]) -> None:
+        """
+        Wraps the setting of the anchors with some validation
+
+        :param anchors: A dictionary of anchors defining what the relative rect is relative to
+        :return: None
+        """
+        old_anchors = self.anchors.copy()
+        self.anchors = {}
+
         if anchors is not None:
             if 'center' in anchors and anchors['center'] == 'center':
                 self.anchors.update({'center': 'center'})
@@ -105,202 +431,15 @@ class UIElement(GUISprite, IUIElementInterface):
             self.anchors = {'left': 'left',
                             'top': 'top'}
 
-        self.drawable_shape = None  # type: Union['DrawableShape', None]
-        self.image = None
-
-        if visible:
-            self.visible = 1
-        else:
-            self.visible = 0
-
-        self.blendmode = pygame.BLEND_PREMULTIPLIED
-        # self.source_rect = None
-
-        self.relative_bottom_margin = None
-        self.relative_right_margin = None
-
-        self.layer_thickness = layer_thickness
-        self.starting_height = starting_height
-
-        self.is_enabled = True
-        self.hovered = False
-        self.is_focused = False
-        self.hover_time = 0.0
-
-        self.pre_debug_image = None
-        self._pre_clipped_image = None
-
-        self._image_clip = None
-
-        self._visual_debug_mode = False
-
-        # Themed parameters
-        self.shadow_width = None  # type: Union[None, int]
-        self.border_width = None  # type: Union[None, int]
-        self.shape_corner_radius = None  # type: Union[None, int]
-
-        self.ui_container = None
-        self._setup_container(container)
-
-        self.dirty = 1
-        self.visible = 0
-        self._setup_visibility(visible)
-
-        self._update_absolute_rect_position_from_anchors()
-
-        self._update_container_clip()
-
-        self._focus_set = {self}
-
-    @staticmethod
-    def _validate_horizontal_anchors(anchors: Dict[str, Union[str, 'UIElement']]):
-        # first make a dictionary of just the horizontal anchors
-        horizontal_anchors = {}
-
-        if 'left' in anchors:
-            horizontal_anchors.update({'left': anchors['left']})
-        if 'right' in anchors:
-            horizontal_anchors.update({'right': anchors['right']})
-        if 'centerx' in anchors:
-            horizontal_anchors.update({'centerx': anchors['centerx']})
-
-        valid_anchor_set = [{'left': 'left', 'right': 'left'},
-                            {'left': 'right', 'right': 'right'},
-                            {'left': 'left', 'right': 'right'},
-                            {'left': 'left'},
-                            {'right': 'right'},
-                            {'left': 'right'},
-                            {'right': 'left'},
-                            {'centerx': 'centerx'}
-                            ]
-
-        if horizontal_anchors in valid_anchor_set:
-            return True
-        elif len(horizontal_anchors) == 0:
-            return False  # no horizontal anchors so just use defaults
-        else:
-            warnings.warn("Supplied horizontal anchors are invalid, defaulting to left", category=UserWarning)
-            return False
-
-    @staticmethod
-    def _validate_vertical_anchors(anchors: Dict[str, Union[str, 'UIElement']]):
-        # first make a dictionary of just the vertical anchors
-        vertical_anchors = {}
-
-        if 'top' in anchors:
-            vertical_anchors.update({'top': anchors['top']})
-        if 'bottom' in anchors:
-            vertical_anchors.update({'bottom': anchors['bottom']})
-        if 'centery' in anchors:
-            vertical_anchors.update({'centery': anchors['centery']})
-
-        valid_anchor_set = [{'top': 'top', 'bottom': 'top'},
-                            {'top': 'bottom', 'bottom': 'bottom'},
-                            {'top': 'top', 'bottom': 'bottom'},
-                            {'top': 'top'},
-                            {'bottom': 'bottom'},
-                            {'top': 'bottom'},
-                            {'bottom': 'top'},
-                            {'centery': 'centery'}
-                            ]
-
-        if vertical_anchors in valid_anchor_set:
-            return True
-        elif len(vertical_anchors) == 0:
-            return False  # no vertical anchors so just use defaults
-        else:
-            warnings.warn("Supplied vertical anchors are invalid, defaulting to top", category=UserWarning)
-            return False
-
-    def _setup_visibility(self, visible):
-        if visible:
-            self.visible = 1
-
-        if self.ui_container is not None and not self.ui_container.visible:
-            self.visible = 0
-
-    def _setup_container(self, container):
-        if container is None:
-            # no container passed in so make it the root container
-            if self.ui_manager.get_root_container() is not None:
-                container = self.ui_manager.get_root_container()
-            else:
-                container = self
-        elif not isinstance(container, IContainerLikeInterface):
-            # oops, passed in something that wasn't a container so bail
-            raise ValueError("container parameter must be of type "
-                             "IContainerLikeInterface.")
-
-        # by this point container should be a valid container
-        self.ui_container = container.get_container()
-        if self.ui_container is not None and self.ui_container is not self:
-            self.ui_container.add_element(self)
-
-    def get_focus_set(self) -> Set['UIElement']:
-        return self._focus_set
-
-    def set_focus_set(self, focus_set: Optional[Set['UIElement']]):
-        if self.ui_manager.get_focus_set() is self._focus_set:
-            self.ui_manager.set_focus_set(focus_set)
-        self._focus_set = focus_set
-
-    def join_focus_sets(self, element: 'UIElement'):
-        if self._focus_set is not None:
-            union_of_sets = set(self._focus_set | element.get_focus_set())
-            for item in union_of_sets:
-                item.set_focus_set(union_of_sets)
-
-    def remove_element_from_focus_set(self, element):
-        if self._focus_set is not None:
-            self._focus_set.discard(element)
-
-    def get_relative_rect(self) -> pygame.Rect:
-        """
-        The relative positioning rect.
-
-        :return: A pygame rect.
-
-        """
-        return self.relative_rect
-
-    def get_abs_rect(self) -> pygame.Rect:
-        """
-        The absolute positioning rect.
-
-        :return: A pygame rect.
-
-        """
-        return self.rect
-
-    def get_element_ids(self) -> List[str]:
-        """
-        A list of all the element IDs in this element's theming/event hierarchy.
-
-        :return: a list of strings, one for each element in the hierarchy.
-        """
-        return self.element_ids
-
-    def get_class_ids(self) -> List[str]:
-        """
-        A list of all the class IDs in this element's theming/event hierarchy.
-
-        :return: a list of strings, one for each element in the hierarchy.
-        """
-        return self.class_ids
-
-    def get_object_ids(self) -> List[str]:
-        """
-        A list of all the object IDs in this element's theming/event hierarchy.
-
-        :return: a list of strings, one for each element in the hierarchy.
-        """
-        return self.object_ids
+        if self.anchors != old_anchors and self.ui_container is not None:
+            self.ui_container.get_container().on_contained_elements_changed(self)
 
     def _create_valid_ids(self,
                           container: Union[IContainerLikeInterface, None],
                           parent_element: Union[None, IUIElementInterface],
                           object_id: Union[ObjectID, str, None],
-                          element_id: str):
+                          element_id: str,
+                          element_base_id: Optional[str] = None):
         """
         Creates valid id lists for an element. It will assert if users supply object IDs that
         won't work such as those containing full stops. These ID lists are used by the theming
@@ -316,10 +455,10 @@ class UIElement(GUISprite, IUIElementInterface):
 
         """
         id_parent: Union[IContainerLikeInterface, IUIElementInterface, None] = None
-        if parent_element is None and container is not None:
-            id_parent = container
-        elif parent_element is not None:
+        if parent_element is not None:
             id_parent = parent_element
+        elif container is not None:
+            id_parent = container
 
         if isinstance(object_id, str):
             if object_id is not None and ('.' in object_id or ' ' in object_id):
@@ -334,134 +473,218 @@ class UIElement(GUISprite, IUIElementInterface):
             class_id = None
 
         if id_parent is not None:
+            self.element_base_ids = id_parent.get_element_base_ids().copy()
             self.element_ids = id_parent.get_element_ids().copy()
-            self.element_ids.append(element_id)
-
             self.class_ids = id_parent.get_class_ids().copy()
-            self.class_ids.append(class_id)
-
             self.object_ids = id_parent.get_object_ids().copy()
+
+            self.element_base_ids.append(element_base_id)
+            self.element_ids.append(element_id)
+            self.class_ids.append(class_id)
             self.object_ids.append(obj_id)
         else:
+            self.element_base_ids = [element_base_id]
             self.element_ids = [element_id]
             self.class_ids = [class_id]
             self.object_ids = [obj_id]
 
         self.combined_element_ids = self.ui_manager.get_theme().build_all_combined_ids(
+            self.element_base_ids,
             self.element_ids,
             self.class_ids,
             self.object_ids)
 
         self.most_specific_combined_id = self.combined_element_ids[0]
 
-    def _calc_top_offset(self) -> int:
-        return (self.anchors['top_target'].get_abs_rect().bottom
-                if 'top_target' in self.anchors
-                else self.ui_container.get_abs_rect().top)
+    def change_object_id(self, new_object_id: Union[ObjectID, str, None]):
+        """
+        Allows for easy switching of an element's ObjectID used for theming and events.
 
-    def _calc_bottom_offset(self) -> int:
-        return (self.anchors['bottom_target'].get_abs_rect().top
-                if 'bottom_target' in self.anchors
-                else self.ui_container.get_abs_rect().bottom)
+        Will rebuild the element after switching the ID
 
-    def _calc_centery_offset(self) -> int:
-        return (self.anchors['centery_target'].get_abs_rect().centery
-                if 'centery_target' in self.anchors
-                else self.ui_container.get_abs_rect().centery)
+        :param new_object_id: The new ID to use for this element.
+        :return:
+        """
+        self._create_valid_ids(container=self.ui_container,
+                               parent_element=self.parent_element,
+                               object_id=new_object_id,
+                               element_id=self.element_ids[-1],
+                               element_base_id=self.element_base_ids[-1])
 
-    def _calc_left_offset(self) -> int:
-        return (self.anchors['left_target'].get_abs_rect().right
-                if 'left_target' in self.anchors
-                else self.ui_container.get_abs_rect().left)
+        self.rebuild_from_changed_theme_data()
 
-    def _calc_right_offset(self) -> int:
-        return (self.anchors['right_target'].get_abs_rect().left
-                if 'right_target' in self.anchors
-                else self.ui_container.get_abs_rect().right)
+    @staticmethod
+    def _calc_top_offset(container: Optional[IContainerLikeInterface],
+                         anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['top_target'].get_abs_rect().bottom
+                if 'top_target' in anchors
+                else container.get_container().get_abs_rect().top)
 
-    def _calc_centerx_offset(self) -> int:
-        return (self.anchors['centerx_target'].get_abs_rect().centerx
-                if 'centerx_target' in self.anchors
-                else self.ui_container.get_abs_rect().centerx)
+    @staticmethod
+    def _calc_bottom_offset(container: Optional[IContainerLikeInterface],
+                            anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['bottom_target'].get_abs_rect().top
+                if 'bottom_target' in anchors
+                else container.get_container().get_abs_rect().bottom)
+
+    @staticmethod
+    def _calc_centery_offset(container: Optional[IContainerLikeInterface],
+                             anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['centery_target'].get_abs_rect().centery
+                if 'centery_target' in anchors
+                else container.get_container().get_abs_rect().centery)
+
+    @staticmethod
+    def _calc_left_offset(container: Optional[IContainerLikeInterface],
+                          anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['left_target'].get_abs_rect().right
+                if 'left_target' in anchors
+                else container.get_container().get_abs_rect().left)
+
+    @staticmethod
+    def _calc_right_offset(container: Optional[IContainerLikeInterface],
+                           anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['right_target'].get_abs_rect().left
+                if 'right_target' in anchors
+                else container.get_container().get_abs_rect().right)
+
+    @staticmethod
+    def _calc_centerx_offset(container: Optional[IContainerLikeInterface],
+                             anchors: Dict[str, Union[str, IUIElementInterface]]) -> int:
+        return (anchors['centerx_target'].get_abs_rect().centerx
+                if 'centerx_target' in anchors
+                else container.get_container().get_abs_rect().centerx)
+
+    @staticmethod
+    def _calc_abs_rect_pos_from_rel_rect(relative_rect: pygame.Rect, container: Optional[IContainerLikeInterface],
+                                         anchors: Dict[str, Union[str, IUIElementInterface]],
+                                         relative_right_margin: Optional[int] = None,
+                                         relative_bottom_margin: Optional[int] = None,
+                                         dynamic_width: bool = False,
+                                         dynamic_height: bool = False) -> Tuple[pygame.Rect, int, int]:
+        """
+        Use this function to get the absolute rect position, given the relative rect, container and the anchors.
+        All values are assumed to be valid.
+
+        :param relative_rect: A Rect relative to the container/anchors
+        :param container: Defines the container of the rect
+        :param anchors: Defines what the Rect is relative to
+        :param relative_right_margin: The margin from the right. If not given or None, then it will be calculated
+        :param relative_bottom_margin: The margin from the bottom. If not given or None, then it will be calculated
+        :param dynamic_width: If the width of the rect is dynamic or not.
+                              If not width will be clamped to minimum of 0.
+        :param dynamic_height: If the height of the rect is dynamic or not.
+                               If not height will be clamped to minimum of 0.
+        :return: A tuple containing a Rect representing the absolute position of the rect from the screen, and the
+        relative right and bottom margins
+        """
+        new_top = 0
+        new_bottom = 0
+        top_offset = UIElement._calc_top_offset(container, anchors)
+        bottom_offset = UIElement._calc_bottom_offset(container, anchors)
+        center_x_and_y = False
+
+        if 'center' in anchors:
+            if anchors['center'] == 'center':
+                center_x_and_y = True
+
+        if ('centery' in anchors and anchors['centery'] == 'centery') or center_x_and_y:
+            centery_offset = UIElement._calc_centery_offset(container, anchors)
+            new_top = relative_rect.top - relative_rect.height // 2 + centery_offset
+            new_bottom = relative_rect.bottom - relative_rect.height // 2 + centery_offset
+
+        if 'top' in anchors:
+            if anchors['top'] == 'top':
+                new_top = relative_rect.top + top_offset
+                new_bottom = relative_rect.bottom + top_offset
+            elif anchors['top'] == 'bottom':
+                new_top = relative_rect.top + bottom_offset
+
+                if relative_bottom_margin is None:
+                    relative_bottom_margin = (bottom_offset - (new_top + relative_rect.height))
+                new_bottom = bottom_offset - relative_bottom_margin
+
+        if 'bottom' in anchors:
+            if anchors['bottom'] == 'top':
+                new_top = relative_rect.top + top_offset
+                new_bottom = relative_rect.bottom + top_offset
+            elif anchors['bottom'] == 'bottom':
+                if not ('top' in anchors and anchors['top'] == 'top'):
+                    new_top = relative_rect.top + bottom_offset
+
+                if relative_bottom_margin is None:
+                    relative_bottom_margin = (bottom_offset - (new_top + relative_rect.height))
+                new_bottom = bottom_offset - relative_bottom_margin
+
+        new_left = 0
+        new_right = 0
+        left_offset = UIElement._calc_left_offset(container, anchors)
+        right_offset = UIElement._calc_right_offset(container, anchors)
+
+        if ('centerx' in anchors and anchors['centerx'] == 'centerx') or center_x_and_y:
+            centerx_offset = UIElement._calc_centerx_offset(container, anchors)
+            new_left = relative_rect.left - relative_rect.width // 2 + centerx_offset
+            new_right = relative_rect.right - relative_rect.width // 2 + centerx_offset
+
+        if 'left' in anchors:
+            if anchors['left'] == 'left':
+                new_left = relative_rect.left + left_offset
+                new_right = relative_rect.right + left_offset
+            elif anchors['left'] == 'right':
+                new_left = relative_rect.left + right_offset
+
+                if relative_right_margin is None:
+                    relative_right_margin = (right_offset - (new_left + relative_rect.width))
+                new_right = right_offset - relative_right_margin
+
+        if 'right' in anchors:
+            if anchors['right'] == 'left':
+                new_left = relative_rect.left + left_offset
+                new_right = relative_rect.right + left_offset
+            elif anchors['right'] == 'right':
+                if not ('left' in anchors and anchors['left'] == 'left'):
+                    new_left = relative_rect.left + right_offset
+
+                if relative_right_margin is None:
+                    relative_right_margin = (right_offset - (new_left + relative_rect.width))
+                new_right = right_offset - relative_right_margin
+
+        if dynamic_height:
+            new_height = new_bottom - new_top
+        else:
+            new_height = max(0, new_bottom - new_top)
+
+        if dynamic_width:
+            new_width = new_right - new_left
+        else:
+            new_width = max(0, new_right - new_left)
+
+        rect = pygame.Rect(new_left, new_top, new_width, new_height)
+        return rect, relative_right_margin, relative_bottom_margin
 
     def _update_absolute_rect_position_from_anchors(self, recalculate_margins=False):
         """
         Called when our element's relative position has changed.
         """
-        new_top = 0
-        new_bottom = 0
-        top_offset = self._calc_top_offset()
-        bottom_offset = self._calc_bottom_offset()
+        relative_right_margin = None if recalculate_margins else self.relative_right_margin
+        relative_bottom_margin = None if recalculate_margins else self.relative_bottom_margin
 
-        center_x_and_y = False
+        rect, self.relative_right_margin, self.relative_bottom_margin = self._calc_abs_rect_pos_from_rel_rect(
+            self.relative_rect,
+            self.ui_container,
+            self.anchors,
+            relative_right_margin,
+            relative_bottom_margin,
+            self.dynamic_width,
+            self.dynamic_height)
 
-        if 'center' in self.anchors:
-            if self.anchors['center'] == 'center':
-                center_x_and_y = True
-
-        if ('centery' in self.anchors and self.anchors['centery'] == 'centery') or center_x_and_y:
-            centery_offset = self._calc_centery_offset()
-            new_top = self.relative_rect.top - self.relative_rect.height//2 + centery_offset
-            new_bottom = self.relative_rect.bottom - self.relative_rect.height//2 + centery_offset
-
-        if 'top' in self.anchors:
-            if self.anchors['top'] == 'top':
-                new_top = self.relative_rect.top + top_offset
-                new_bottom = self.relative_rect.bottom + top_offset
-            elif self.anchors['top'] == 'bottom':
-                new_top = self.relative_rect.top + bottom_offset
-                if self.relative_bottom_margin is None or recalculate_margins:
-                    self.relative_bottom_margin = (bottom_offset -
-                                                   (new_top + self.relative_rect.height))
-                new_bottom = bottom_offset - self.relative_bottom_margin
-
-        if 'bottom' in self.anchors:
-            if self.anchors['bottom'] == 'top':
-                new_top = self.relative_rect.top + top_offset
-                new_bottom = self.relative_rect.bottom + top_offset
-            elif self.anchors['bottom'] == 'bottom':
-                if not ('top' in self.anchors and self.anchors['top'] == 'top'):
-                    new_top = self.relative_rect.top + bottom_offset
-                if self.relative_bottom_margin is None or recalculate_margins:
-                    self.relative_bottom_margin = (bottom_offset -
-                                                   (new_top + self.relative_rect.height))
-                new_bottom = bottom_offset - self.relative_bottom_margin
-
-        new_left = 0
-        new_right = 0
-        left_offset = self._calc_left_offset()
-        right_offset = self._calc_right_offset()
-
-        if ('centerx' in self.anchors and self.anchors['centerx'] == 'centerx') or center_x_and_y:
-            centerx_offset = self._calc_centerx_offset()
-            new_left = self.relative_rect.left - self.relative_rect.width//2 + centerx_offset
-            new_right = self.relative_rect.right - self.relative_rect.width//2 + centerx_offset
-
-        if 'left' in self.anchors:
-            if self.anchors['left'] == 'left':
-                new_left = self.relative_rect.left + left_offset
-                new_right = self.relative_rect.right + left_offset
-            elif self.anchors['left'] == 'right':
-                new_left = self.relative_rect.left + right_offset
-                if self.relative_right_margin is None or recalculate_margins:
-                    self.relative_right_margin = (right_offset - (new_left + self.relative_rect.width))
-                new_right = right_offset - self.relative_right_margin
-
-        if 'right' in self.anchors:
-            if self.anchors['right'] == 'left':
-                new_left = self.relative_rect.left + left_offset
-                new_right = self.relative_rect.right + left_offset
-            elif self.anchors['right'] == 'right':
-                if not ('left' in self.anchors and self.anchors['left'] == 'left'):
-                    new_left = self.relative_rect.left + right_offset
-                if self.relative_right_margin is None or recalculate_margins:
-                    self.relative_right_margin = (right_offset - (new_left + self.relative_rect.width))
-                new_right = right_offset - self.relative_right_margin
+        new_left, new_top = rect.topleft
+        new_width, new_height = rect.size
 
         self.rect.left = new_left
         self.rect.top = new_top
-        new_height = new_bottom - new_top
-        new_width = new_right - new_left
+
+        new_width, new_height = self._get_clamped_to_minimum_dimensions((new_width, new_height))
         if (new_height != self.relative_rect.height) or (new_width != self.relative_rect.width):
             self.set_dimensions((new_width, new_height))
 
@@ -480,8 +703,8 @@ class UIElement(GUISprite, IUIElementInterface):
 
         new_top = 0
         new_bottom = 0
-        top_offset = self._calc_top_offset()
-        bottom_offset = self._calc_bottom_offset()
+        top_offset = self._calc_top_offset(self.ui_container, self.anchors)
+        bottom_offset = self._calc_bottom_offset(self.ui_container, self.anchors)
 
         center_x_and_y = False
         if 'center' in self.anchors:
@@ -489,9 +712,9 @@ class UIElement(GUISprite, IUIElementInterface):
                 center_x_and_y = True
 
         if ('centery' in self.anchors and self.anchors['centery'] == 'centery') or center_x_and_y:
-            centery_offset = self._calc_centery_offset()
-            new_top = self.rect.top + self.relative_rect.height//2 - centery_offset
-            new_bottom = self.rect.bottom + self.relative_rect.height//2 - centery_offset
+            centery_offset = self._calc_centery_offset(self.ui_container, self.anchors)
+            new_top = self.rect.top + self.relative_rect.height // 2 - centery_offset
+            new_bottom = self.rect.bottom + self.relative_rect.height // 2 - centery_offset
 
         if 'top' in self.anchors:
             if self.anchors['top'] == 'top':
@@ -516,13 +739,13 @@ class UIElement(GUISprite, IUIElementInterface):
 
         new_left = 0
         new_right = 0
-        left_offset = self._calc_left_offset()
-        right_offset = self._calc_right_offset()
+        left_offset = self._calc_left_offset(self.ui_container, self.anchors)
+        right_offset = self._calc_right_offset(self.ui_container, self.anchors)
 
         if ('centerx' in self.anchors and self.anchors['centerx'] == 'centerx') or center_x_and_y:
-            centerx_offset = self._calc_centerx_offset()
-            new_left = self.rect.left + self.relative_rect.width//2 - centerx_offset
-            new_right = self.rect.right + self.relative_rect.width//2 - centerx_offset
+            centerx_offset = self._calc_centerx_offset(self.ui_container, self.anchors)
+            new_left = self.rect.left + self.relative_rect.width // 2 - centerx_offset
+            new_right = self.rect.right + self.relative_rect.width // 2 - centerx_offset
 
         if 'left' in self.anchors:
             if self.anchors['left'] == 'left':
@@ -563,10 +786,10 @@ class UIElement(GUISprite, IUIElementInterface):
         element is inside its container, part-way in it, or all the way out of it.
 
         """
-        if self.ui_container.get_image_clipping_rect() is not None:
-            container_clip_rect = self.ui_container.get_image_clipping_rect().copy()
-            container_clip_rect.left += self.ui_container.get_rect().left
-            container_clip_rect.top += self.ui_container.get_rect().top
+        if self.ui_container.get_container().get_image_clipping_rect() is not None:
+            container_clip_rect = self.ui_container.get_container().get_image_clipping_rect().copy()
+            container_clip_rect.left += self.ui_container.get_container().get_rect().left
+            container_clip_rect.top += self.ui_container.get_container().get_rect().top
             if not container_clip_rect.contains(self.rect):
                 left = max(0, container_clip_rect.left - self.rect.left)
                 right = max(0, self.rect.width - max(0,
@@ -583,15 +806,15 @@ class UIElement(GUISprite, IUIElementInterface):
             else:
                 self._restore_container_clipped_images()
 
-        elif not self.ui_container.get_rect().contains(self.rect):
-            left = max(0, self.ui_container.get_rect().left - self.rect.left)
+        elif not self.ui_container.get_container().get_rect().contains(self.rect):
+            left = max(0, self.ui_container.get_container().get_rect().left - self.rect.left)
             right = max(0, self.rect.width - max(0,
                                                  self.rect.right -
-                                                 self.ui_container.get_rect().right))
-            top = max(0, self.ui_container.get_rect().top - self.rect.top)
+                                                 self.ui_container.get_container().get_rect().right))
+            top = max(0, self.ui_container.get_container().get_rect().top - self.rect.top)
             bottom = max(0, self.rect.height - max(0,
                                                    self.rect.bottom -
-                                                   self.ui_container.get_rect().bottom))
+                                                   self.ui_container.get_container().get_rect().bottom))
             clip_rect = pygame.Rect(left, top,
                                     max(0, right - left),
                                     max(0, bottom - top))
@@ -601,7 +824,7 @@ class UIElement(GUISprite, IUIElementInterface):
 
     def update_containing_rect_position(self):
         """
-        Updates the position of this element based on the position of it's container. Usually
+        Updates the position of this element based on the position of its container. Usually
         called when the container has moved.
         """
         self._update_absolute_rect_position_from_anchors()
@@ -611,9 +834,7 @@ class UIElement(GUISprite, IUIElementInterface):
 
         self._update_container_clip()
 
-    def set_relative_position(self, position: Union[pygame.math.Vector2,
-                                                    Tuple[int, int],
-                                                    Tuple[float, float]]):
+    def set_relative_position(self, position: Coordinate):
         """
         Method to directly set the relative rect position of an element.
 
@@ -629,11 +850,9 @@ class UIElement(GUISprite, IUIElementInterface):
             self.drawable_shape.set_position(self.rect.topleft)
 
         self._update_container_clip()
-        self.ui_container.on_anchor_target_changed(self)
+        self.ui_container.get_container().on_contained_elements_changed(self)
 
-    def set_position(self, position: Union[pygame.math.Vector2,
-                                           Tuple[int, int],
-                                           Tuple[float, float]]):
+    def set_position(self, position: Coordinate):
         """
         Method to directly set the absolute screen rect position of an element.
 
@@ -647,25 +866,71 @@ class UIElement(GUISprite, IUIElementInterface):
         if self.drawable_shape is not None:
             self.drawable_shape.set_position(self.rect.topleft)
         self._update_container_clip()
-        self.ui_container.on_anchor_target_changed(self)
+        self.ui_container.get_container().on_contained_elements_changed(self)
 
-    def set_dimensions(self, dimensions: Union[pygame.math.Vector2,
-                                               Tuple[int, int],
-                                               Tuple[float, float]]):
+    def set_minimum_dimensions(self, dimensions: Coordinate):
         """
-        Method to directly set the dimensions of an element.
+        If this window is resizable, then the dimensions we set here will be the minimum that
+        users can change the window to. They are also used as the minimum size when
+        'set_dimensions' is called.
+
+        :param dimensions: The new minimum dimension for the window.
+
+        """
+        self.minimum_dimensions = (min(self.ui_container.get_container().get_rect().width, int(dimensions[0])),
+                                   min(self.ui_container.get_container().get_rect().height, int(dimensions[1])))
+
+        if ((self.rect.width < self.minimum_dimensions[0]) or
+                (self.rect.height < self.minimum_dimensions[1])):
+            new_width = max(self.minimum_dimensions[0], self.rect.width)
+            new_height = max(self.minimum_dimensions[1], self.rect.height)
+            self.set_dimensions((new_width, new_height))
+
+    def set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
+        """
+        Method to directly set the dimensions of an element. And set whether the elements are dynamic.
 
         NOTE: Using this on elements inside containers with non-default anchoring arrangements
         may make a mess of them.
 
-        :param dimensions: The new dimensions to set.
-
+        :param dimensions: The new dimensions to set. If it is a negative value, the element will become
+                            dynamically sized, otherwise it will become statically sized.
+        :param clamp_to_container: Whether we should clamp the dimensions to the
+                                   dimensions of the container or not.
         """
+        is_dynamic = False
+        if dimensions[0] < 0:
+            self._set_dynamic_width()
+            is_dynamic = True
+        else:
+            self._set_dynamic_width(False)
+
+        if dimensions[1] < 0:
+            self._set_dynamic_height()
+            is_dynamic = True
+        else:
+            self._set_dynamic_height(False)
+
+        if is_dynamic:
+            self.rebuild()
+        else:
+            self._set_dimensions(dimensions, clamp_to_container)
+
+    def _set_dimensions(self, dimensions: Coordinate, clamp_to_container: bool = False):
+        """
+        Method to directly set the dimensions of an element.
+        Dimensions must be positive values.
+
+        :param dimensions: The new dimensions to set.
+        :param clamp_to_container: Whether we should clamp the dimensions to the
+                                   dimensions of the container or not.
+        """
+        dimensions = self._get_clamped_to_minimum_dimensions(dimensions, clamp_to_container)
         self.relative_rect.width = int(dimensions[0])
         self.relative_rect.height = int(dimensions[1])
         self.rect.size = self.relative_rect.size
 
-        if dimensions[0] >= 0 and dimensions[1] >= 0:
+        if self.relative_rect.width >= 0 and self.relative_rect.height >= 0:
             self._update_absolute_rect_position_from_anchors(recalculate_margins=True)
 
             if self.drawable_shape is not None:
@@ -674,7 +939,7 @@ class UIElement(GUISprite, IUIElementInterface):
                     self._set_image(self.drawable_shape.get_fresh_surface())
 
             self._update_container_clip()
-            self.ui_container.on_anchor_target_changed(self)
+            self.ui_container.get_container().on_contained_elements_changed(self)
 
     def update(self, time_delta: float):
         """
@@ -701,9 +966,11 @@ class UIElement(GUISprite, IUIElementInterface):
 
     def kill(self):
         """
-        Overriding regular sprite kill() method to remove the element from it's container.
+        Overriding regular sprite kill() method to remove the element from its container.
         """
-        self.ui_container.remove_element(self)
+        if self.tool_tip is not None:
+            self.tool_tip.kill()
+        self.ui_container.get_container().remove_element(self)
         self.remove_element_from_focus_set(self)
         super().kill()
 
@@ -720,26 +987,32 @@ class UIElement(GUISprite, IUIElementInterface):
         :return bool: A boolean that is true if we have hovered a UI element, either just now or
                       before this method.
         """
-        if self.alive() and self.can_hover():
+        should_block_hover = False
+        if self.alive():
             mouse_x, mouse_y = self.ui_manager.get_mouse_position()
             mouse_pos = pygame.math.Vector2(mouse_x, mouse_y)
 
-            if (self.is_enabled and
-                    self.hover_point(mouse_x, mouse_y) and
+            if (self.hover_point(mouse_x, mouse_y) and
                     not hovered_higher_element):
-                if not self.hovered:
-                    self.hovered = True
-                    self.on_hovered()
+                should_block_hover = True
 
-                self.while_hovering(time_delta, mouse_pos)
+                if self.can_hover():
+                    if not self.hovered:
+                        self.hovered = True
+                        self.on_hovered()
 
+                    self.while_hovering(time_delta, mouse_pos)
+                else:
+                    if self.hovered:
+                        self.hovered = False
+                        self.on_unhovered()
             else:
                 if self.hovered:
                     self.hovered = False
                     self.on_unhovered()
         elif self.hovered:
             self.hovered = False
-        return self.hovered
+        return should_block_hover
 
     def on_fresh_drawable_shape_ready(self):
         """
@@ -750,23 +1023,42 @@ class UIElement(GUISprite, IUIElementInterface):
 
     def on_hovered(self):
         """
-        A stub to override. Called when this UI element first enters the 'hovered' state.
+        Called when this UI element first enters the 'hovered' state.
         """
+        self.hover_time = 0.0
 
     def on_unhovered(self):
         """
-        A stub to override. Called when this UI element leaves the 'hovered' state.
+        Called when this UI element leaves the 'hovered' state.
         """
+        if self.tool_tip is not None:
+            self.tool_tip.kill()
+            self.tool_tip = None
 
-    def while_hovering(self, time_delta: float, mouse_pos: pygame.math.Vector2):
+    def while_hovering(self, time_delta: float,
+                       mouse_pos: Union[pygame.math.Vector2, Tuple[int, int], Tuple[float, float]]):
         """
-        A stub method to override. Called when this UI element is currently hovered.
+        Called while we are in the hover state. It will create a tool tip if we've been in the
+        hover state for a while, the text exists to create one, and we haven't created one already.
 
-        :param time_delta: A float, the time in seconds between the last call to this function
-                           and now (roughly).
-        :param mouse_pos: The current position of the mouse as 2D Vector.
+        :param time_delta: Time in seconds between calls to update.
+        :param mouse_pos: The current position of the mouse.
 
         """
+        if (self.tool_tip is None and self.tool_tip_text is not None and
+                self.hover_time > self.tool_tip_delay):
+            hover_height = int(self.rect.height / 2)
+            self.tool_tip = self.ui_manager.create_tool_tip(text=self.tool_tip_text,
+                                                            position=(mouse_pos[0],
+                                                                      self.rect.centery),
+                                                            hover_distance=(0,
+                                                                            hover_height),
+                                                            parent_element=self,
+                                                            object_id=self.tool_tip_object_id,
+                                                            wrap_width=self.tool_tip_wrap_width,
+                                                            text_kwargs=self.tool_tip_text_kwargs)
+
+        self.hover_time += time_delta
 
     def can_hover(self) -> bool:
         """
@@ -788,11 +1080,11 @@ class UIElement(GUISprite, IUIElementInterface):
 
         """
 
-        container_clip_rect = self.ui_container.get_rect().copy()
-        if self.ui_container.get_image_clipping_rect() is not None:
-            container_clip_rect.size = self.ui_container.get_image_clipping_rect().size
-            container_clip_rect.left += self.ui_container.get_image_clipping_rect().left
-            container_clip_rect.top += self.ui_container.get_image_clipping_rect().top
+        container_clip_rect = self.ui_container.get_container().get_rect().copy()
+        if self.ui_container.get_container().get_image_clipping_rect() is not None:
+            container_clip_rect.size = self.ui_container.get_container().get_image_clipping_rect().size
+            container_clip_rect.left += self.ui_container.get_container().get_image_clipping_rect().left
+            container_clip_rect.top += self.ui_container.get_container().get_image_clipping_rect().top
 
         if self.drawable_shape is not None:
             return (self.drawable_shape.collide_point((hover_x, hover_y)) and
@@ -916,6 +1208,8 @@ class UIElement(GUISprite, IUIElementInterface):
 
             self._image_clip = rect
             if self.image is not None:
+                if self.image.get_size() != self._pre_clipped_image.get_size():
+                    self.image = pygame.Surface(self._pre_clipped_image.get_size(), flags=pygame.SRCALPHA, depth=32)
                 self.image.fill(pygame.Color('#00000000'))
                 basic_blit(self.image, self._pre_clipped_image, self._image_clip, self._image_clip)
 
@@ -925,11 +1219,17 @@ class UIElement(GUISprite, IUIElementInterface):
         else:
             self._image_clip = None
 
+    def _get_pre_clipped_image_size(self) -> Coordinate:
+        if self._pre_clipped_image is not None:
+            return self._pre_clipped_image.get_size()
+        else:
+            return 0, 0
+
     def get_image_clipping_rect(self) -> Union[pygame.Rect, None]:
         """
         Obtain the current image clipping rect.
 
-        :return: The current clipping rect. May be None.
+        :return: The current clipping rect. Maybe None.
 
         """
         return self._image_clip
@@ -986,7 +1286,7 @@ class UIElement(GUISprite, IUIElementInterface):
     def get_starting_height(self) -> int:
         """
         Get the starting layer height of this element. (i.e. the layer we start placing it on
-        *above* it's container, it may use more layers above this layer)
+        *above* its container, it may use more layers above this layer)
 
         :return: an integer representing the starting layer height.
 
@@ -1008,9 +1308,28 @@ class UIElement(GUISprite, IUIElementInterface):
         if self._check_misc_theme_data_changed('shadow_width', defaults['shadow_width'], int):
             has_any_changed = True
 
-        if self._check_misc_theme_data_changed('shape_corner_radius',
-                                               defaults['shape_corner_radius'], int):
-            has_any_changed = True
+        # corner radius
+        temp_corner_radius = [0, 0, 0, 0]
+        try:
+            str_corner_radius = self.ui_theme.get_misc_data('shape_corner_radius', self.combined_element_ids)
+            if isinstance(str_corner_radius, str):
+                corner_radii_list = str_corner_radius.split(',')
+                if len(corner_radii_list) == 4:
+                    temp_corner_radius[0] = int(corner_radii_list[0])
+                    temp_corner_radius[1] = int(corner_radii_list[1])
+                    temp_corner_radius[2] = int(corner_radii_list[2])
+                    temp_corner_radius[3] = int(corner_radii_list[3])
+                if len(corner_radii_list) == 1:
+                    temp_corner_radius[0] = int(corner_radii_list[0])
+                    temp_corner_radius[1] = int(corner_radii_list[0])
+                    temp_corner_radius[2] = int(corner_radii_list[0])
+                    temp_corner_radius[3] = int(corner_radii_list[0])
+        except (LookupError, ValueError):
+            self.shape_corner_radius = defaults['shape_corner_radius']
+        finally:
+            if temp_corner_radius != self.shape_corner_radius:
+                self.shape_corner_radius = temp_corner_radius
+                has_any_changed = True
 
         return has_any_changed
 
@@ -1068,14 +1387,14 @@ class UIElement(GUISprite, IUIElementInterface):
         """
         Shows the widget, which means the widget will get drawn and will process events.
         """
-        self.visible = 1
+        self.visible = True
 
     def hide(self):
         """
         Hides the widget, which means the widget will not get drawn and will not process events.
         Clear hovered state.
         """
-        self.visible = 0
+        self.visible = False
 
         self.hovered = False
         self.hover_time = 0.0
@@ -1123,3 +1442,17 @@ class UIElement(GUISprite, IUIElementInterface):
         """
         self.ui_theme.update_single_element_theming(self.most_specific_combined_id, new_theming_data)
         self.rebuild_from_changed_theme_data()
+
+    def set_tooltip(self, text: Optional[str] = None, object_id: Optional[ObjectID] = None,
+                    text_kwargs: Optional[Dict[str, str]] = None, delay: Optional[float] = None,
+                    wrap_width: Optional[int] = None):
+        self.tool_tip_text = text
+        self.tool_tip_text_kwargs = {}
+        if text_kwargs is not None:
+            self.tool_tip_text_kwargs = text_kwargs
+        self.tool_tip_object_id = object_id
+
+        if delay is not None:
+            self.tool_tip_delay = delay
+
+        self.tool_tip_wrap_width = wrap_width

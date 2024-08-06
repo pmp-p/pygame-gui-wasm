@@ -6,13 +6,14 @@ from pygame_gui.core import ObjectID
 from pygame_gui.core.interfaces import IContainerLikeInterface, IUIManagerInterface
 from pygame_gui.core import UIElement
 from pygame_gui.core.drawable_shapes import RectDrawableShape, RoundedRectangleShape
+from pygame_gui.core.gui_type_hints import RectLike, SpriteWithHealth
 
 
 class UIStatusBar(UIElement):
     """
     Displays a status/progress bar.
 
-    This is a flexible class that can be used to display status for a sprite (health/mana/fatigue, etc),
+    This is a flexible class that can be used to display status for a sprite (health/mana/fatigue, etc.),
     or to provide a status bar on the screen not attached to any particular object. You can use multiple
     status bars for a sprite to show different status items if desired.
 
@@ -32,19 +33,18 @@ class UIStatusBar(UIElement):
                     it will try to use the first UIManager that was created by your application.
     :param container: The container that this element is within. If set to None will be the root window's container.
     :param parent_element: The element this element 'belongs to' in the theming hierarchy.
-    :param object_id: A custom defined ID for fine tuning of theming.
+    :param object_id: A custom defined ID for fine-tuning of theming.
     :param anchors: A dictionary describing what this element's relative_rect is relative to.
     :param visible: Whether the element is visible by default. Warning - container visibility
                     may override this.
 
     """
-
     element_id = 'status_bar'
 
     def __init__(self,
-                 relative_rect: pygame.Rect,
+                 relative_rect: RectLike,
                  manager: Optional[IUIManagerInterface] = None,
-                 sprite: Union[pygame.sprite.Sprite, None] = None,
+                 sprite: Optional[SpriteWithHealth] = None,
                  follow_sprite: bool = True,
                  percent_method: Union[Callable[[], float], None] = None,
                  container: Union[IContainerLikeInterface, None] = None,
@@ -57,14 +57,12 @@ class UIStatusBar(UIElement):
                          starting_height=1,
                          layer_thickness=1,
                          anchors=anchors,
-                         visible=visible)
+                         visible=visible,
+                         parent_element=parent_element,
+                         object_id=object_id,
+                         element_id=[self.element_id])
 
-        self._create_valid_ids(container=container,
-                               parent_element=parent_element,
-                               object_id=object_id,
-                               element_id=self.element_id)
-
-        self.sprite = sprite
+        self.sprite: SpriteWithHealth = sprite
         self.follow_sprite = follow_sprite
         self.follow_sprite_offset = (0, 0)
 
@@ -86,7 +84,6 @@ class UIStatusBar(UIElement):
 
         self.drawable_shape = None
         self.shape = 'rectangle'
-        self.shape_corner_radius = None
 
         self.font = None
         self.text_shadow_colour = None
@@ -235,12 +232,17 @@ class UIStatusBar(UIElement):
 
         if self._check_shape_theming_changed(defaults={'border_width': 1,
                                                        'shadow_width': 2,
-                                                       'shape_corner_radius': 2}):
+                                                       'shape_corner_radius': [2, 2, 2, 2]}):
             has_any_changed = True
 
         if self._check_misc_theme_data_changed(attribute_name='hover_height',
                                                default_value=1,
                                                casting_func=int):
+            has_any_changed = True
+
+        if self._check_misc_theme_data_changed(attribute_name='tool_tip_delay',
+                                               default_value=1.0,
+                                               casting_func=float):
             has_any_changed = True
 
         border_colour = self.ui_theme.get_colour_or_gradient('normal_border',
