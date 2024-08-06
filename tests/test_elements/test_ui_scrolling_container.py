@@ -6,6 +6,7 @@ from tests.shared_comparators import compare_surfaces
 from pygame_gui.ui_manager import UIManager
 from pygame_gui.elements.ui_scrolling_container import UIScrollingContainer
 from pygame_gui.elements.ui_button import UIButton
+from pygame_gui.elements.ui_text_box import UITextBox
 from pygame_gui.core.interfaces import IUIManagerInterface
 
 
@@ -53,6 +54,7 @@ class TestUIScrollingContainer:
         container.set_position((50, 50))
 
         assert container.rect.topleft == (50, 50)
+        assert container._root_container.rect.size == (200, 200)
 
     def test_set_relative_position(self, _init_pygame, default_ui_manager,
                                    _display_surface_return_none):
@@ -115,6 +117,47 @@ class TestUIScrollingContainer:
         assert container._view_container.rect.size == (200-container.vert_scroll_bar.rect.width,
                                                        200-container.horiz_scroll_bar.rect.height)
 
+    def test_set_scrollable_area_dimensions_constrained_x_axis(self, _init_pygame, default_ui_manager,
+                                                               _display_surface_return_none):
+        container = UIScrollingContainer(pygame.Rect(100, 100, 200, 200),
+                                         manager=default_ui_manager,
+                                         allow_scroll_x=False)
+
+        assert container.vert_scroll_bar is not None
+        assert container.vert_scroll_bar.rect.width == 0
+        assert container.horiz_scroll_bar is None
+        assert container.scrollable_container.rect.size == (200, 200)
+
+        container.set_scrollable_area_dimensions((200, 600))
+
+        assert container.vert_scroll_bar is not None
+        assert container.vert_scroll_bar.rect.width != 0
+        assert container.horiz_scroll_bar is None
+        assert container._view_container.rect.size == (200 - container.vert_scroll_bar.rect.width,
+                                                       200)
+        assert container.scrollable_container.rect.size == (200 - container.vert_scroll_bar.rect.width, 600)
+
+    def test_set_scrollable_area_dimensions_constrained_y_axis(self, _init_pygame, default_ui_manager,
+                                                               _display_surface_return_none):
+        container = UIScrollingContainer(pygame.Rect(100, 100, 200, 200),
+                                         manager=default_ui_manager,
+                                         allow_scroll_y=False)
+
+        assert container.vert_scroll_bar is None
+        assert container.horiz_scroll_bar is not None
+        assert container.horiz_scroll_bar.rect.height == 0
+        assert container.scrollable_container.rect.size == (200, 200)
+
+        container.set_scrollable_area_dimensions((600, 200))
+
+        assert container.vert_scroll_bar is None
+        assert container.horiz_scroll_bar is not None
+        assert container.horiz_scroll_bar.rect.height != 0
+        assert container._view_container.rect.size == (200,
+                                                       200 - container.horiz_scroll_bar.rect.height)
+        assert container.scrollable_container.rect.size == (600,
+                                                            200 - container.horiz_scroll_bar.rect.height)
+
     def test_update(self, _init_pygame, default_ui_manager,
                     _display_surface_return_none):
         container = UIScrollingContainer(pygame.Rect(100, 100, 200, 200),
@@ -122,12 +165,13 @@ class TestUIScrollingContainer:
 
         container.set_scrollable_area_dimensions((500, 600))
 
-        container.horiz_scroll_bar.scroll_wheel_right = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = -1.0
         container.horiz_scroll_bar.update(0.02)
 
         container.update(0.02)
 
-        assert container.get_container().relative_rect.x == -37
+        assert container.get_container().get_relative_rect().x == -15
 
         container.vert_scroll_bar.scroll_wheel_moved = True
         container.vert_scroll_bar.scroll_wheel_amount = -1.0
@@ -135,32 +179,39 @@ class TestUIScrollingContainer:
 
         container.update(0.02)
 
-        assert container.get_container().relative_rect.y == -67
+        assert container.get_container().get_relative_rect().y == -11
 
-        container.horiz_scroll_bar.scroll_wheel_right = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = -5.0
         container.horiz_scroll_bar.update(0.02)
         container.horiz_scroll_bar.start_percentage = 0.6
         container.update(0.02)
-        container.horiz_scroll_bar.scroll_wheel_right = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = -5.0
         container.horiz_scroll_bar.update(0.02)
         container.update(0.02)
-        container.horiz_scroll_bar.scroll_wheel_right = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = -5.0
         container.horiz_scroll_bar.update(0.02)
         container.scrolling_right = container._view_container.rect.right - 1
         container.update(0.02)
 
-        container.horiz_scroll_bar.scroll_wheel_left = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = 5.0
         container.horiz_scroll_bar.update(0.02)
         container.update(0.02)
-        container.horiz_scroll_bar.scroll_wheel_left = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = 5.0
         container.horiz_scroll_bar.update(0.02)
         container.update(0.02)
-        container.horiz_scroll_bar.scroll_wheel_left = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = 5.0
         container.horiz_scroll_bar.update(0.02)
         container.update(0.02)
 
         container.scrollable_container.set_dimensions((150, 600))
-        container.horiz_scroll_bar.scroll_wheel_left = True
+        container.horiz_scroll_bar.scroll_wheel_moved = True
+        container.horiz_scroll_bar.scroll_wheel_amount = 5.0
         container.horiz_scroll_bar.update(0.02)
         container.update(0.02)
 
@@ -334,7 +385,11 @@ class TestUIScrollingContainer:
         container = UIScrollingContainer(relative_rect=pygame.Rect(100, 100, 200, 100),
                                          manager=manager,
                                          visible=0)
-        container.set_scrollable_area_dimensions((600, 600))
+        button_1 = UIButton(relative_rect=pygame.Rect(300, 100, 150, 30),
+                            text="Test Button",
+                            tool_tip_text="This is a test of the button's tool tip functionality.",
+                            manager=default_ui_manager,
+                            container=container)
         manager.update(0.01)
         manager.draw_ui(surface)
         assert compare_surfaces(empty_surface, surface)
@@ -350,6 +405,132 @@ class TestUIScrollingContainer:
         manager.update(0.01)
         manager.draw_ui(surface)
         assert compare_surfaces(empty_surface, surface)
+
+    def test_iteration(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                       _display_surface_return_none):
+        container = UIScrollingContainer(pygame.Rect(100, 100, 200, 200), manager=default_ui_manager)
+        button_1 = UIButton(relative_rect=pygame.Rect(50, 50, 50, 50), text="1",
+                            manager=default_ui_manager, container=container)
+        button_2 = UIButton(relative_rect=pygame.Rect(150, 50, 50, 50), text="2",
+                            manager=default_ui_manager, container=container)
+        
+        assert button_1 in container
+        assert button_2 in container
+        count = 0
+        for button in container:
+            button.get_relative_rect()
+            count += 1
+        assert count == 2
+
+    def test_are_contents_hovered(self,  _init_pygame, default_ui_manager: IUIManagerInterface,
+                                  _display_surface_return_none):
+        manager = UIManager((800, 600))
+        container = UIScrollingContainer(pygame.Rect(100, 100, 200, 200), manager=manager)
+        container.set_scrollable_area_dimensions((400, 400))
+        button_1 = UIButton(relative_rect=pygame.Rect(50, 50, 50, 50), text="1",
+                            manager=manager, container=container)
+        button_2 = UIButton(relative_rect=pygame.Rect(50, 300, 50, 50), text="2",
+                            manager=manager, container=container)
+        manager.mouse_position = (155, 155)
+        button_1.check_hover(0.1, False)
+        button_2.check_hover(0.1, False)
+
+        assert container.are_contents_hovered()
+        assert container.vert_scroll_bar is not None
+
+        container.vert_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+
+        assert container.vert_scroll_bar.scroll_wheel_moved
+
+        assert container.horiz_scroll_bar is not None
+
+        container.horiz_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'x': -0.5}))
+
+        assert container.horiz_scroll_bar.scroll_wheel_moved
+
+    def test_scrolls_while_hovering_non_scrolling_contents(self,  _init_pygame, default_ui_manager: IUIManagerInterface,
+                                                           _display_surface_return_none):
+        manager = UIManager((800, 600))
+        container = UIScrollingContainer(pygame.Rect(100, 100, 250, 300), manager=manager)
+        container.set_scrollable_area_dimensions((250, 600))
+
+        text_box_inside_scrolling_container = UITextBox(html_text="Some text inside a text box, itself"
+                                                                  " inside a container that scrolls",
+                                                        relative_rect=pygame.Rect(20, 20, 150, 200),
+                                                        container=container,
+                                                        manager=manager)
+        manager.mouse_position = text_box_inside_scrolling_container.rect.center
+        text_box_inside_scrolling_container.check_hover(0.1, False)
+
+        assert container.are_contents_hovered()
+        assert container.vert_scroll_bar is not None
+
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+
+        assert container.vert_scroll_bar.scroll_wheel_moved
+
+    def test_does_not_scroll_while_hovering_scrolling_contents(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                                                               _display_surface_return_none):
+        manager = UIManager((800, 600))
+        container = UIScrollingContainer(pygame.Rect(100, 100, 250, 300), manager=manager)
+        container.set_scrollable_area_dimensions((250, 600))
+
+        text_box_inside_scrolling_container = UITextBox(html_text="Some text inside a scrolling text box, itself"
+                                                                  " inside a container that scrolls. "
+                                                                  "scrolling should work correctly with the mousewheel, "
+                                                                  "depending on whether we are hovering this text box, or"
+                                                                  " whether we are hovering other stuff in the "
+                                                                  "scrolling container",
+                                                        relative_rect=pygame.Rect(20, 20, 180, 200),
+                                                        container=container,
+                                                        manager=manager)
+        manager.mouse_position = text_box_inside_scrolling_container.rect.center
+        text_box_inside_scrolling_container.check_hover(0.1, False)
+
+        assert container.are_contents_hovered()
+        assert container.vert_scroll_bar is not None
+
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+
+        assert not container.vert_scroll_bar.scroll_wheel_moved
+
+    def test_scroll_while_hovering_nested_contents(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                                                   _display_surface_return_none):
+        manager = UIManager((800, 600))
+        container = UIScrollingContainer(pygame.Rect(100, 100, 250, 300), manager=manager)
+        container.set_scrollable_area_dimensions((250, 600))
+
+        container_2 = UIScrollingContainer(pygame.Rect(10, 10, 230, 280), manager=manager, container=container,
+                                           should_grow_automatically=False)
+
+        text_box_inside_two_scrolling_containers = UITextBox(html_text="Some text",
+                                                             relative_rect=pygame.Rect(10, 10, 210, 260),
+                                                             container=container_2,
+                                                             manager=manager)
+        manager.mouse_position = text_box_inside_two_scrolling_containers.rect.center
+        text_box_inside_two_scrolling_containers.check_hover(0.1, False)
+
+        assert container.are_contents_hovered()
+        assert container.vert_scroll_bar is not None
+
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+
+        assert container.vert_scroll_bar.scroll_wheel_moved
+
+    def test_set_anchors(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                         _display_surface_return_none):
+        panel = UIScrollingContainer(relative_rect=pygame.Rect(0, 0, 50, 50),
+                                     manager=default_ui_manager,
+                                     anchors={'left': 'left',
+                                              'right': 'left',
+                                              'top': 'top',
+                                              'bottom': 'top'})
+        panel.set_anchors(anchors={'left': 'right',
+                                   'right': 'right',
+                                   'top': 'top',
+                                   'bottom': 'top'})
+        assert panel.get_anchors()["left"] == "right"
+        assert panel.get_anchors()["right"] == "right"
 
 
 if __name__ == '__main__':

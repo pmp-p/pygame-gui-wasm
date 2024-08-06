@@ -17,8 +17,8 @@ class TestUITextEntryBox:
     def test_creation(self, _init_pygame: None,
                       default_ui_manager: UIManager,
                       _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextEntryBox(
             initial_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                          "<i>styles</i>.",
@@ -29,8 +29,8 @@ class TestUITextEntryBox:
     def test_set_text(self, _init_pygame: None,
                       default_ui_manager: UIManager,
                       _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextEntryBox(
             initial_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                          "<i>styles</i>.",
@@ -44,8 +44,8 @@ class TestUITextEntryBox:
     def test_clear(self, _init_pygame: None,
                    default_ui_manager: UIManager,
                    _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextEntryBox(
             initial_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                          "<i>styles</i>.",
@@ -59,29 +59,29 @@ class TestUITextEntryBox:
     def test_creation_grow_to_fit_width(self, _init_pygame: None,
                                         default_ui_manager: UIManager,
                                         _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextEntryBox(
             initial_text="Some text in a  box not using colours and styles. Hey hey hey, what is this?"
                          "More text padding this out a little. Well OK.",
             relative_rect=pygame.Rect(100, 100, -1, 50),
             manager=default_ui_manager)
-        assert text_box.image is not None and text_box.rect.width == 984
+        assert text_box.image is not None and text_box.rect.width == 806
 
     def test_creation_and_rebuild_with_scrollbar(self, _init_pygame: None,
                                                  default_ui_manager: UIManager,
                                                  _display_surface_return_none):
-        default_ui_manager.preload_fonts([{'name': 'fira_code', 'html_size': 4.5, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4.5, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold_italic'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold_italic'}])
+        default_ui_manager.preload_fonts([{'name': 'noto_sans', 'html_size': 4.5, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4.5, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold_italic'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold_italic'}])
         text_box = UITextEntryBox(initial_text=''
                                                '<font color=regular_text><font color=#E784A2 size=4.5><br><b><u>Lorem</u>'
                                                '<br><br><br>'
@@ -161,17 +161,17 @@ class TestUITextEntryBox:
 
     def test_kill(self, _init_pygame: None, default_ui_manager: UIManager,
                   _display_surface_return_none):
-        default_ui_manager.preload_fonts([{'name': 'fira_code', 'html_size': 4.5, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4.5, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold_italic'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold_italic'}])
+        default_ui_manager.preload_fonts([{'name': 'noto_sans', 'html_size': 4.5, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4.5, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold_italic'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold_italic'}])
         text_box = UITextEntryBox(initial_text=''
                                                '<font color=regular_text><font color=#E784A2 size=4.5><br><b><u>Lorem</u>'
                                                '<br><br><br>'
@@ -486,11 +486,11 @@ class TestUITextEntryBox:
                                                _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_non_default.json"))
-        manager.preload_fonts([{"name": "fira_code", "point_size": 10, "style": "regular"},
-                               {'name': 'fira_code', 'point_size': 10, 'style': 'bold'},
-                               {"name": "fira_code", "point_size": 10, "style": "italic"},
-                               {"name": "fira_code", "point_size": 10, "style": "bold_italic"}])
-        htm_text_block_2 = UITextEntryBox(initial_text='<font face=fira_code size=2 color=#000000>'
+        manager.preload_fonts([{"name": "noto_sans", "point_size": 10, "style": "regular"},
+                               {'name': 'noto_sans', 'point_size': 10, 'style': 'bold'},
+                               {"name": "noto_sans", "point_size": 10, "style": "italic"},
+                               {"name": "noto_sans", "point_size": 10, "style": "bold_italic"}])
+        htm_text_block_2 = UITextEntryBox(initial_text='<font face=noto_sans size=2 color=#000000>'
                                           '<b>Hey, What the heck!</b>'
                                           '<br><br>'
                                           'This is some <a href="test">text</a> in a different box,'
@@ -564,9 +564,9 @@ class TestUITextEntryBox:
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_non_default.json"))
 
-        manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                               {"name": "fira_code", "size:": 14, "style": "italic"}])
-        text_box = UITextEntryBox(initial_text="<font color=#FF0000 face=fira_code>Some "
+        manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                               {"name": "noto_sans", "size:": 14, "style": "italic"}])
+        text_box = UITextEntryBox(initial_text="<font color=#FF0000 face=noto_sans>Some "
                                                "<font color=regular_text>text</font> "
                                                "in a <b>bold box</b> <a>using</a> "
                                                "colours and <i>styles</i>.</font>",
@@ -584,10 +584,10 @@ class TestUITextEntryBox:
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_bad_values.json"))
 
-        manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                               {"name": "fira_code", "size:": 14, "style": "italic"}])
+        manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                               {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextEntryBox(
-            initial_text="<font color=#FF0000 face=fira_code>Some text in a <b>bold box</b> using "
+            initial_text="<font color=#FF0000 face=noto_sans>Some text in a <b>bold box</b> using "
                          "colours and <i>styles</i>.</font>",
             relative_rect=pygame.Rect(100, 100, 200, 300),
             manager=manager)
@@ -714,17 +714,12 @@ class TestUITextEntryBox:
         assert text_entry.is_enabled is True
         text_entry.focus()
         # process a mouse button down event
-        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_d,
-                                                                           'mod': 0,
-                                                                           'unicode': 'd'}))
+        processed_text_input_event = text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'd'}))
 
-        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_a, 'mod': 0,
-                                                                     'unicode': 'a'}))
-        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_n, 'mod': 0,
-                                                                     'unicode': 'n'}))
+        text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'a'}))
+        text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'n'}))
 
-        assert processed_key_event is True and text_entry.get_text() == 'dan'
+        assert processed_text_input_event is True and text_entry.get_text() == 'dan'
 
     def test_on_locale_changed(self, _init_pygame, default_ui_manager, _display_surface_return_none):
         text_box = UITextEntryBox(initial_text='la la LA LA LAL LAL ALALA'
@@ -780,7 +775,7 @@ class TestUITextEntryBox:
                                   manager=default_ui_manager)
         assert text_box.image is not None
         assert len(text_box.text_box_layout.layout_rows) == 3
-        
+
     def test_rebuild_select_area_1(self, _init_pygame, default_ui_manager,
                                    _display_surface_return_none):
         text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
@@ -807,7 +802,8 @@ class TestUITextEntryBox:
 
         assert text_entry.image is not None
 
-    def test_set_text_rebuild_select_area_3(self, _init_pygame):
+    def test_set_text_rebuild_select_area_3(self, _init_pygame,
+                                            _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
                                                      "ui_text_entry_line_non_default_2.json"))
@@ -824,7 +820,8 @@ class TestUITextEntryBox:
     @pytest.mark.filterwarnings("ignore:Invalid value")
     @pytest.mark.filterwarnings("ignore:Colour hex code")
     @pytest.mark.filterwarnings("ignore:Invalid Theme Colour")
-    def test_set_text_rebuild_select_area_3(self, _init_pygame):
+    def test_set_text_rebuild_select_area_4(self, _init_pygame,
+                                            _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
                                                      "ui_text_entry_line_bad_values.json"))
@@ -862,17 +859,12 @@ class TestUITextEntryBox:
 
         text_entry.focus()
 
-        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_d,
-                                                                           'mod': 0,
-                                                                           'unicode': 'd'}))
+        processed_text_input_event = text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'd'}))
 
-        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_a, 'mod': 0,
-                                                                     'unicode': 'a'}))
-        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_n, 'mod': 0,
-                                                                     'unicode': 'n'}))
+        text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'a'}))
+        text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'n'}))
 
-        assert processed_key_event and text_entry.get_text() == 'dan'
+        assert processed_text_input_event and text_entry.get_text() == 'dan'
 
     def test_process_event_text_entered_with_select_range(self, _init_pygame: None,
                                                           default_ui_manager: UIManager,
@@ -884,34 +876,11 @@ class TestUITextEntryBox:
         text_entry.focus()
         text_entry.select_range = [1, 9]
 
-        # process a mouse button down event
-        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_o,
-                                                                           'mod': 0,
-                                                                           'unicode': 'o'}))
+        # process a text input event
+        processed_text_input_event = text_entry.process_event(pygame.event.Event(pygame.TEXTINPUT, {'text': 'o'}))
 
-        assert (processed_key_event is True and
+        assert (processed_text_input_event is True and
                 text_entry.get_text() == 'Ho hours of fun writing tests')
-
-    def test_process_event_text_ctrl_c(self, _init_pygame: None,
-                                       _display_surface_return_none: None):
-        manager = UIManager((800, 600), os.path.join("tests", "data",
-                                                     "themes",
-                                                     "ui_text_entry_line_non_default_2.json"))
-        text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
-                                    manager=manager)
-
-        text_entry.set_text('dan')
-        text_entry.focus()
-        text_entry.select_range = [0, 3]
-
-        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_c,
-                                                                           'mod': pygame.KMOD_CTRL,
-                                                                           'unicode': 'c'}))
-        text_entry.cursor_on = True
-
-        assert processed_key_event and clipboard_paste() == 'dan'
 
     def test_process_event_text_ctrl_v(self, _init_pygame: None, default_ui_manager: UIManager,
                                        _display_surface_return_none: None):
@@ -1056,14 +1025,14 @@ class TestUITextEntryBox:
         text_entry.set_text('dan is amazing')
         processed_down_event = text_entry.process_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
                                                                            {'button': 1,
-                                                                            'pos': (30, 15)}))
+                                                                            'pos': (32, 15)}))
         processed_up_event = text_entry.process_event(pygame.event.Event(pygame.MOUSEBUTTONUP,
                                                                          {'button': 1,
                                                                           'pos': (80, 15)}))
 
         assert processed_down_event
         assert processed_up_event
-        assert text_entry.select_range == [3, 9]
+        assert text_entry.select_range == [3, 10]
 
     def test_process_event_mouse_button_double_click(self, _init_pygame: None,
                                                      default_ui_manager: UIManager,
@@ -1161,7 +1130,8 @@ class TestUITextEntryBox:
         text_entry.focus()
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_RIGHT}))
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': 0}))
 
         assert processed_key_event
 
@@ -1176,9 +1146,91 @@ class TestUITextEntryBox:
         text_entry.focus()
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_RIGHT}))
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': 0}))
 
         assert processed_key_event
+        assert text_entry.edit_position == 3
+
+        text_entry.edit_position = 1
+        text_entry.focus()
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, 2]
+        assert text_entry.edit_position == 2
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, 3]
+        assert text_entry.edit_position == 3
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, 2]
+        assert text_entry.edit_position == 2
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 2
+
+        text_entry.edit_position = 0
+        text_entry.focus()
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.edit_position == 3
+
+        text_entry.edit_position = 0
+        text_entry.focus()
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 3]
+        assert text_entry.edit_position == 3
+
+        text_entry.set_text('dan dan')
+        text_entry.edit_position = 0
+        text_entry.select_range = [0, 0]
+        text_entry.focus()
+
+        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_RIGHT,
+                                                                     'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 7]
+        assert text_entry.edit_position == 7
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 7
 
     def test_process_event_text_left(self, _init_pygame: None, default_ui_manager: UIManager,
                                      _display_surface_return_none: None):
@@ -1190,10 +1242,158 @@ class TestUITextEntryBox:
         assert text_entry.edit_position == 3
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_LEFT}))
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': 0}))
 
         assert processed_key_event
         assert text_entry.edit_position == 2
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, 2]
+        assert text_entry.edit_position == 1
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 2]
+        assert text_entry.edit_position == 0
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, 2]
+        assert text_entry.edit_position == 1
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 1
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.edit_position == 0
+
+        text_entry.edit_position = 3
+        text_entry.focus()
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 3]
+        assert text_entry.edit_position == 0
+
+        text_entry.set_text('dan dan')
+        text_entry.edit_position = 7
+        text_entry.select_range = [0, 0]
+        text_entry.focus()
+
+        text_entry.process_event(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_LEFT,
+                                                                     'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_CTRL | pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 7]
+        assert text_entry.edit_position == 0
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 0
+
+    def test_process_event_text_down(self, _init_pygame: None, default_ui_manager: UIManager,
+                                     _display_surface_return_none: None):
+        text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
+                                    manager=default_ui_manager)
+
+        text_entry.set_text('daniel\nmulti-line\ntext')
+        text_entry.edit_position = 3
+        text_entry.focus()
+        text_entry.update(0.1)
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_DOWN,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+        assert text_entry.edit_position == 10
+
+        text_entry.edit_position = 3
+        text_entry.focus()
+        text_entry.update(0.1)
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_DOWN,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [3, 10]
+        assert text_entry.edit_position == 10
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_DOWN,
+                                                                           'mod': 0}))
+        assert text_entry.select_range == [0, 0]
+        assert processed_key_event
+        assert text_entry.edit_position == 10
+
+    def test_process_event_text_up(self, _init_pygame: None, default_ui_manager: UIManager,
+                                   _display_surface_return_none: None):
+        text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
+                                    manager=default_ui_manager)
+
+        text_entry.set_text('daniel\nmulti-line\ntext')
+        text_entry.edit_position = 10
+        text_entry.focus()
+        text_entry.update(0.1)
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_UP,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+        assert text_entry.edit_position == 3
+
+        text_entry.edit_position = 10
+        text_entry.focus()
+        text_entry.update(0.1)
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_UP,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [3, 10]
+        assert text_entry.edit_position == 3
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_UP,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 3
 
     def test_process_event_home(self, _init_pygame: None, default_ui_manager: UIManager,
                                 _display_surface_return_none: None):
@@ -1205,10 +1405,40 @@ class TestUITextEntryBox:
         text_entry.select_range = [0, 2]
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_HOME}))
+                                                                          {'key': pygame.K_HOME,
+                                                                           'mod': 0}))
 
         assert processed_key_event
         assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 0
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_HOME,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 0
+
+        text_entry.set_text('daniel\nmulti-line\ntext')
+        text_entry.edit_position = 3
+        text_entry.focus()
+        text_entry.select_range = [1, 3]
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_HOME,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 1]
+        assert text_entry.edit_position == 0
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_HOME,
+                                                                           'mod': pygame.KMOD_SHIFT | pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 1]
         assert text_entry.edit_position == 0
 
     def test_process_event_end(self, _init_pygame: None, default_ui_manager: UIManager,
@@ -1221,11 +1451,41 @@ class TestUITextEntryBox:
         text_entry.select_range = [0, 2]
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_END}))
+                                                                          {'key': pygame.K_END,
+                                                                           'mod': 0}))
 
         assert processed_key_event
         assert text_entry.select_range == [0, 0]
         assert text_entry.edit_position == 3
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_END,
+                                                                           'mod': pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [0, 0]
+        assert text_entry.edit_position == 3
+
+        text_entry.set_text('daniel\nmulti-line\ntext')
+        text_entry.edit_position = 3
+        text_entry.focus()
+        text_entry.select_range = [1, 3]
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_END,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, len("daniel")]
+        assert text_entry.edit_position == len("daniel")
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_END,
+                                                                           'mod': pygame.KMOD_SHIFT | pygame.KMOD_CTRL}))
+
+        assert processed_key_event
+        assert text_entry.select_range == [1, len("daniel\nmulti-line\ntext")]
+        assert text_entry.edit_position == len("daniel\nmulti-line\ntext")
 
     def test_process_event_text_right_select_range(self, _init_pygame: None,
                                                    default_ui_manager: UIManager,
@@ -1238,7 +1498,8 @@ class TestUITextEntryBox:
         text_entry.select_range = [0, 2]
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_RIGHT}))
+                                                                          {'key': pygame.K_RIGHT,
+                                                                           'mod': 0}))
 
         assert processed_key_event
 
@@ -1253,7 +1514,64 @@ class TestUITextEntryBox:
         text_entry.select_range = [0, 2]
 
         processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
-                                                                          {'key': pygame.K_LEFT}))
+                                                                          {'key': pygame.K_LEFT,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+
+    def test_process_event_text_up_select_range(self, _init_pygame: None,
+                                                default_ui_manager: UIManager,
+                                                _display_surface_return_none: None):
+        text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
+                                    manager=default_ui_manager)
+
+        text_entry.set_text('dan\n'
+                            'dan')
+        text_entry.focus()
+        text_entry.select_range = [6, 7]
+        text_entry.edit_position = 6
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_UP,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+
+        text_entry.focus()
+        text_entry.select_range = [6, 7]
+        text_entry.edit_position = 6
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_UP,
+                                                                           'mod': pygame.KMOD_SHIFT}))
+
+        assert processed_key_event
+
+    def test_process_event_text_down_select_range(self, _init_pygame: None,
+                                                  default_ui_manager: UIManager,
+                                                  _display_surface_return_none: None):
+        text_entry = UITextEntryBox(relative_rect=pygame.Rect(100, 100, 200, 30),
+                                    manager=default_ui_manager)
+
+        text_entry.set_text('dan\n'
+                            'dan')
+        text_entry.focus()
+        text_entry.select_range = [0, 2]
+        text_entry.edit_position = 2
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_DOWN,
+                                                                           'mod': 0}))
+
+        assert processed_key_event
+
+        text_entry.focus()
+        text_entry.select_range = [0, 2]
+        text_entry.edit_position = 2
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_DOWN,
+                                                                           'mod': pygame.KMOD_SHIFT}))
 
         assert processed_key_event
 
@@ -1319,7 +1637,7 @@ class TestUITextEntryBox:
     @pytest.mark.filterwarnings("ignore:Invalid value")
     @pytest.mark.filterwarnings("ignore:Colour hex code")
     @pytest.mark.filterwarnings("ignore:Invalid Theme Colour")
-    def test_redraw_selected_text(self, _init_pygame):
+    def test_redraw_selected_text(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
                                                      "ui_text_entry_line_bad_values.json"))
@@ -1330,7 +1648,7 @@ class TestUITextEntryBox:
         text_entry.select_range = [3, 8]
         text_entry.start_text_offset = 500
 
-    def test_redraw_selected_text_different_theme(self, _init_pygame):
+    def test_redraw_selected_text_different_theme(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
                                                      "ui_text_entry_line_non_default_2.json"))
@@ -1340,7 +1658,7 @@ class TestUITextEntryBox:
         text_entry.set_text("Yellow su")
         text_entry.select_range = [3, 9]
 
-    def test_update(self,  _init_pygame):
+    def test_update(self,  _init_pygame, _display_surface_return_none):
         pygame.display.init()
 
         class MouselessManager(UIManager):
@@ -1358,11 +1676,11 @@ class TestUITextEntryBox:
         text_entry.update(0.01)
 
         assert text_entry.alive()
-        assert not manager.text_input_hovered
+        assert not manager.text_hovered
 
         MouselessManager.fixed_mouse_pos = (200, 115)
         manager.update(0.01)
-        assert manager.text_input_hovered
+        assert manager.text_hovered
 
         text_entry.kill()
 
@@ -1402,7 +1720,7 @@ class TestUITextEntryBox:
 
         text_entry.update(0.01)
 
-    def test_update_after_long_wait(self,  _init_pygame):
+    def test_update_after_long_wait(self,  _init_pygame, _display_surface_return_none):
         pygame.display.init()
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
@@ -1431,7 +1749,7 @@ class TestUITextEntryBox:
     @pytest.mark.filterwarnings("ignore:Invalid value")
     @pytest.mark.filterwarnings("ignore:Colour hex code")
     @pytest.mark.filterwarnings("ignore:Invalid Theme Colour")
-    def test_rebuild_from_theme_data_bad_values(self, _init_pygame):
+    def test_rebuild_from_theme_data_bad_values(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes",
                                                      "ui_text_entry_line_bad_values.json"))
@@ -1463,6 +1781,21 @@ class TestUITextEntryBox:
         text_entry.set_relative_position((50.0, 30.0))
 
         assert text_entry.rect.topleft == (100, 80)
+
+    def test_placeholder_text(self, _init_pygame, default_ui_manager,
+                              _display_surface_return_none):
+        text_box = UITextEntryBox(
+            initial_text="",
+            relative_rect=pygame.Rect(100, 100, 200, 300),
+            manager=default_ui_manager,
+            placeholder_text='Enter text here...')
+        assert text_box.image is not None
+        assert text_box.text_box_layout.plain_text == "Enter text here..."
+
+        text_box.focus()
+        assert text_box.text_box_layout.plain_text == ""
+        text_box.unfocus()
+        assert text_box.text_box_layout.plain_text == "Enter text here..."
 
 
 if __name__ == '__main__':

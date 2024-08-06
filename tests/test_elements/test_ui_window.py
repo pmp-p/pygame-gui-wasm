@@ -6,7 +6,9 @@ import pygame_gui
 from tests.shared_comparators import compare_surfaces
 
 from pygame_gui.elements.ui_window import UIWindow
+from pygame_gui.elements.ui_scrolling_container import UIScrollingContainer
 from pygame_gui.elements.ui_button import UIButton
+from pygame_gui.elements.ui_text_box import UITextBox
 from pygame_gui.core.interfaces import IUIManagerInterface
 from pygame_gui import UIManager
 
@@ -46,6 +48,29 @@ class TestUIWindow:
                                                               'pos': button.rect.center}))
         assert not button.held
 
+        window.set_blocking(False)
+        window.always_on_top = True
+        window.set_blocking(True)
+
+        default_ui_manager.process_events(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
+                                                             {'button': pygame.BUTTON_LEFT,
+                                                              'pos': button.rect.center}))
+        assert not button.held
+
+        window.set_blocking(False)
+        window.always_on_top = False
+
+        UIWindow(pygame.Rect(0, 0, 100, 100), window_display_title="Test On Top Window",
+                 manager=default_ui_manager, element_id='window', always_on_top=True)
+
+        window.set_blocking(True)
+        default_ui_manager.process_events(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
+                                                             {'button': pygame.BUTTON_LEFT,
+                                                              'pos': button.rect.center}))
+        assert not button.held
+
+        window.set_blocking(False)
+
     def test_set_minimum_dimensions(self, _init_pygame, default_ui_manager: IUIManagerInterface,
                                     _display_surface_return_none):
         window = UIWindow(pygame.Rect(200, 200, 200, 200), window_display_title="Test Window",
@@ -54,11 +79,13 @@ class TestUIWindow:
         window.set_minimum_dimensions((200, 200))
         window.set_dimensions((100, 100))
 
-        assert window.rect.size == (200, 200)
+        assert window.rect.size == (200,
+                                    200)
 
         window.set_minimum_dimensions((250, 250))
 
-        assert window.rect.size == (250, 250)
+        assert window.rect.size == (250,
+                                    250)
 
     def test_set_dimensions(self, _init_pygame, default_ui_manager: IUIManagerInterface,
                             _display_surface_return_none):
@@ -79,13 +106,29 @@ class TestUIWindow:
 
         assert button.rect.topright == (window.get_container().rect.right - 10,
                                         window.get_container().rect.top + 10)
-        assert button.rect.topright == (374, 253)
+        assert button.rect.topright == (389, 238)
 
         window.set_dimensions((300, 400))
 
         assert button.rect.topright == (window.get_container().rect.right - 10,
                                         window.get_container().rect.top + 10)
-        assert button.rect.topright == (474, 253)
+        assert button.rect.topright == (459, 238)
+        
+        confirm_event_fired = False
+        event_object_id = None
+        new_external_dimensions = (0, 0)
+        new_internal_dimensions = (0, 0)
+        for event in pygame.event.get():
+            if (event.type == pygame_gui.UI_WINDOW_RESIZED and
+                    event.ui_element == window):
+                confirm_event_fired = True
+                event_object_id = event.ui_object_id
+                new_external_dimensions = event.external_size
+                new_internal_dimensions = event.internal_size
+        assert confirm_event_fired
+        assert event_object_id == 'window'
+        assert new_external_dimensions == (300, 400)
+        assert new_internal_dimensions == (268, 341)
 
     def test_set_relative_position(self, _init_pygame, default_ui_manager: IUIManagerInterface,
                                    _display_surface_return_none):
@@ -104,9 +147,9 @@ class TestUIWindow:
                                    'top': 'top',
                                    'bottom': 'top'})
 
-        assert button.rect.topright == (374, 253)
+        assert button.rect.topright == (389, 238)
         window.set_relative_position((100, 100))
-        assert button.rect.topright == (274, 153)
+        assert button.rect.topright == (304, 153)
 
     def test_set_position(self, _init_pygame, default_ui_manager: IUIManagerInterface,
                           _display_surface_return_none):
@@ -125,9 +168,9 @@ class TestUIWindow:
                                    'top': 'top',
                                    'bottom': 'top'})
 
-        assert button.rect.topright == (374, 253)
+        assert button.rect.topright == (389, 238)
         window.set_position((100, 100))
-        assert button.rect.topright == (274, 153)
+        assert button.rect.topright == (304, 153)
 
     def test_process_event(self, _init_pygame, default_ui_manager,
                            _display_surface_return_none: None):
@@ -244,7 +287,7 @@ class TestUIWindow:
         default_ui_manager.mouse_position = (150, 10)
         window.update(time_delta=0.05)
 
-        assert window.get_relative_rect().topleft == (50, 0)
+        assert window.get_relative_rect().topleft == (35, -15)
 
         window = UIWindow(pygame.Rect(0, 0, 200, 200), window_display_title="Test Window",
                           manager=default_ui_manager, draggable=False)
@@ -255,7 +298,7 @@ class TestUIWindow:
         default_ui_manager.mouse_position = (150, 10)
         window.update(time_delta=0.05)
 
-        assert window.get_relative_rect().topleft == (0, 0)
+        assert window.get_relative_rect().topleft == (-15, -15)
 
     def test_check_hover(self, _init_pygame, default_ui_manager: UIManager,
                          _display_surface_return_none: None):
@@ -435,10 +478,10 @@ class TestUIWindow:
         assert window.image is not None
         assert window.shadow_width == 1
         assert window.border_width == 2
-        assert window.shape_corner_radius == 10
+        assert window.shape_corner_radius == [10, 10, 10, 10]
         assert button.shadow_width == 1
         assert button.border_width == 2
-        assert button.shape_corner_radius == 4
+        assert button.shape_corner_radius == [4, 4, 4, 4]
 
     def test_rebuild_from_changed_theme_data_no_title_bar(self, _init_pygame,
                                                           _display_surface_return_none):
@@ -628,14 +671,15 @@ class TestUIWindow:
         assert window.get_relative_mouse_pos() is None
 
         default_ui_manager.mouse_position = (200, 200)
-        assert window.get_relative_mouse_pos() == (84, 57)
+        assert window.get_relative_mouse_pos() == (99, 72)
 
     def test_drag_resizing(self, _init_pygame, default_ui_manager,
                            _display_surface_return_none):
         window = UIWindow(pygame.Rect(0, 0, 101, 101),
                           window_display_title="Test Window",
                           manager=default_ui_manager,
-                          visible=0)
+                          visible=0,
+                          ignore_shadow_for_initial_size_and_pos=False)
 
         window.start_resize_point = (50, 101)
         window.start_resize_rect = window.rect.copy()
@@ -666,6 +710,54 @@ class TestUIWindow:
         window.edge_hovering[0] = False
 
         assert window.rect.width == 100 and window.rect.height == 100
+
+    def test_iteration(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                       _display_surface_return_none):
+        window = UIWindow(pygame.Rect(100, 100, 200, 200), manager=default_ui_manager)
+        button_1 = UIButton(relative_rect=pygame.Rect(50, 50, 50, 50), text="1",
+                            manager=default_ui_manager, container=window)
+        button_2 = UIButton(relative_rect=pygame.Rect(150, 50, 50, 50), text="2",
+                            manager=default_ui_manager, container=window)
+        
+        assert button_1 in window
+        assert button_2 in window
+        count = 0
+        for button in window:
+            button.get_relative_rect()
+            count += 1
+        assert count == 2
+
+    def test_are_contents_hovered(self,  _init_pygame, default_ui_manager: IUIManagerInterface,
+                                  _display_surface_return_none):
+        manager = UIManager((800, 600))
+        window = UIWindow(pygame.Rect(100, 100, 200, 200), manager=manager)
+        button_1 = UIButton(relative_rect=pygame.Rect(50, 50, 50, 50), text="1",
+                            manager=manager, container=window)
+        button_2 = UIButton(relative_rect=pygame.Rect(125, 50, 50, 50), text="2",
+                            manager=manager, container=window)
+        manager.mouse_position = button_1.rect.center
+        button_1.check_hover(0.1, False)
+        button_2.check_hover(0.1, False)
+
+        assert window.are_contents_hovered()
+
+    def test_are_nested_contents_hovered(self, _init_pygame, default_ui_manager: IUIManagerInterface,
+                                         _display_surface_return_none):
+        manager = UIManager((800, 600))
+        window = UIWindow(pygame.Rect(100, 100, 250, 300), manager=manager)
+
+        container_2 = UIScrollingContainer(pygame.Rect(10, 10, 230, 280), manager=manager, container=window)
+
+        nested_text_box = UITextBox(html_text="Some text inside a scrolling text box, itself"
+                                              " inside a container that scrolls inside "
+                                              " another container. ",
+                                    relative_rect=pygame.Rect(10, 10, 180, 200),
+                                    container=container_2,
+                                    manager=manager)
+        manager.mouse_position = nested_text_box.rect.center
+        nested_text_box.check_hover(0.1, False)
+
+        assert window.are_contents_hovered()
 
 
 if __name__ == '__main__':

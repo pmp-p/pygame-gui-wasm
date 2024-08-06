@@ -1,5 +1,5 @@
 import pygame
-import pygame.freetype
+from pygame_gui.core.gui_font_freetype import GUIFontFreetype
 import pytest
 
 from pygame_gui.core.colour_gradient import ColourGradient
@@ -8,11 +8,9 @@ from pygame_gui.ui_manager import UIManager
 
 
 class TestTextLineChunkFTFont:
-    def test_creation(self, _init_pygame, default_ui_manager: UIManager):
+    def test_creation(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test',
                                     font=the_font,
@@ -23,15 +21,10 @@ class TestTextLineChunkFTFont:
 
         assert chunk.text == 'test'
 
-    def test_style_match(self, _init_pygame, default_ui_manager: UIManager):
+    def test_style_match(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
-
-        the_second_font = pygame.freetype.Font(None, 14)
-        the_second_font.origin = True
-        the_second_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
+        the_second_font = GUIFontFreetype(None, 14)
 
         chunk_1 = TextLineChunkFTFont(text='test',
                                       font=the_font,
@@ -90,10 +83,8 @@ class TestTextLineChunkFTFont:
 
         assert not chunk_1.style_match(chunk_6)
 
-    def test_finalise(self, _init_pygame, default_ui_manager: UIManager):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_finalise(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
+        the_font = GUIFontFreetype(None, 30)
 
         chunk_1 = TextLineChunkFTFont(text='test',
                                       font=the_font,
@@ -108,7 +99,8 @@ class TestTextLineChunkFTFont:
                          pygame.Rect(0, 0, 200, 300),
                          chunk_1.y_origin,
                          chunk_1.height,
-                         chunk_1.height)
+                         chunk_1.height,
+                         chunk_1.row_line_spacing_height)
 
         assert layout_surface.get_at((10, 10)) == pygame.Color('#FF0000')
 
@@ -127,7 +119,8 @@ class TestTextLineChunkFTFont:
                          pygame.Rect(0, 0, 200, 300),
                          chunk_2.y_origin,
                          chunk_2.height,
-                         chunk_2.height)
+                         chunk_2.height,
+                         chunk_2.row_line_spacing_height)
 
         assert layout_surface_2.get_at((10, 10)) == pygame.Color('#FF0000')
 
@@ -148,7 +141,8 @@ class TestTextLineChunkFTFont:
                          pygame.Rect(0, 0, 200, 300),
                          chunk_3.y_origin,
                          chunk_3.height,
-                         chunk_3.height)
+                         chunk_3.height,
+                         chunk_3.row_line_spacing_height)
 
         assert layout_surface_3.get_at((10, 10)) != pygame.Color('#00000000')
 
@@ -167,15 +161,14 @@ class TestTextLineChunkFTFont:
                          pygame.Rect(0, 0, 200, 300),
                          chunk_4.y_origin,
                          chunk_4.height,
-                         chunk_4.height)
+                         chunk_4.height,
+                         chunk_4.row_line_spacing_height)
 
         assert layout_surface_4.get_at((10, 10)) != pygame.Color('#00000000')
 
-    def test_split(self, _init_pygame, default_ui_manager: UIManager):
+    def test_split(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -194,15 +187,13 @@ class TestTextLineChunkFTFont:
         new_chunk = chunk.split(requested_x=70, line_width=200, row_start_x=0)
 
         assert chunk.width == 62
-        assert new_chunk.width == 53
+        assert new_chunk.width == 55
         assert original_chunk_width == (chunk.width + new_chunk.width)
         assert chunk.height == new_chunk.height
 
-    def test_split_index(self, _init_pygame, default_ui_manager: UIManager):
+    def test_split_index(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -221,17 +212,15 @@ class TestTextLineChunkFTFont:
         new_chunk = chunk.split_index(index=5)
 
         assert chunk.width == 62
-        assert new_chunk.width == 53
+        assert new_chunk.width == 55
         assert original_chunk_width == (chunk.width + new_chunk.width)
         assert chunk.height == new_chunk.height
 
         assert chunk.split_index(index=-1) is None
 
-    def test_clear(self, _init_pygame, default_ui_manager: UIManager):
+    def test_clear(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -246,7 +235,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
 
         assert layout_surface.get_at((10, 10)) == pygame.Color('#FF00FF')
 
@@ -254,11 +244,9 @@ class TestTextLineChunkFTFont:
 
         assert layout_surface.get_at((10, 10)) == pygame.Color('#00000000')
 
-    def test_add_text(self, _init_pygame, default_ui_manager: UIManager):
+    def test_add_text(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -273,11 +261,9 @@ class TestTextLineChunkFTFont:
 
         assert chunk.text == 'test this for great justice'
 
-    def test_insert_text(self, _init_pygame, default_ui_manager: UIManager):
+    def test_insert_text(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -316,11 +302,9 @@ class TestTextLineChunkFTFont:
         chunk.insert_text(input_text=' world', index=5)
         assert chunk.text == 'hello world'
 
-    def test_delete_letter_at_index(self, _init_pygame, default_ui_manager: UIManager):
+    def test_delete_letter_at_index(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -381,11 +365,9 @@ class TestTextLineChunkFTFont:
                                     max_dimensions=(50, 30))
         chunk.delete_letter_at_index(index=0)
 
-    def test_backspace_letter_at_index(self, _init_pygame, default_ui_manager: UIManager):
+    def test_backspace_letter_at_index(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -450,10 +432,8 @@ class TestTextLineChunkFTFont:
                                     max_dimensions=(50, 30))
         chunk.backspace_letter_at_index(index=1)
 
-    def test_x_pos_to_letter_index(self):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_x_pos_to_letter_index(self, _init_pygame, _display_surface_return_none):
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -474,11 +454,9 @@ class TestTextLineChunkFTFont:
         letter_index = chunk.x_pos_to_letter_index(x_pos=100)
         assert letter_index == 8
 
-    def test_redraw(self, _init_pygame, default_ui_manager: UIManager):
+    def test_redraw(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
 
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+        the_font = GUIFontFreetype(None, 30)
 
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
@@ -493,7 +471,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
 
         assert layout_surface.get_at((10, 10)) == pygame.Color('#FF00FF')
 
@@ -505,10 +484,9 @@ class TestTextLineChunkFTFont:
 
         assert layout_surface.get_at((10, 10)) == pygame.Color('#FF00FF')
 
-    def test_set_alpha(self, _init_pygame, default_ui_manager: UIManager):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_set_alpha(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
+        the_font = GUIFontFreetype(None, 30)
+
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
                                     underlined=False,
@@ -521,7 +499,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
 
         chunk.grab_pre_effect_surface()
         chunk.set_alpha(128)
@@ -533,10 +512,9 @@ class TestTextLineChunkFTFont:
 
         assert chunk.alpha == 0
 
-    def test_set_offset_position(self, _init_pygame, default_ui_manager: UIManager):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_set_offset_position(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
+        the_font = GUIFontFreetype(None, 30)
+
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
                                     underlined=False,
@@ -549,7 +527,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
         chunk.grab_pre_effect_surface()
         chunk.set_offset_pos((10, 10))
         chunk.redraw()
@@ -557,10 +536,9 @@ class TestTextLineChunkFTFont:
 
         assert chunk.effects_offset_pos == (0, 0)
 
-    def test_set_scale(self, _init_pygame, default_ui_manager: UIManager):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_set_scale(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
+        the_font = GUIFontFreetype(None, 30)
+
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
                                     underlined=False,
@@ -573,7 +551,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
         chunk.grab_pre_effect_surface()
         chunk.set_scale(2.0)
         chunk.redraw()
@@ -581,10 +560,9 @@ class TestTextLineChunkFTFont:
 
         assert chunk.effects_scale == 1.0
 
-    def test_set_rotation(self, _init_pygame, default_ui_manager: UIManager):
-        the_font = pygame.freetype.Font(None, 30)
-        the_font.origin = True
-        the_font.pad = True
+    def test_set_rotation(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
+        the_font = GUIFontFreetype(None, 30)
+
         chunk = TextLineChunkFTFont(text='test this',
                                     font=the_font,
                                     underlined=False,
@@ -597,7 +575,8 @@ class TestTextLineChunkFTFont:
                        pygame.Rect(0, 0, 200, 300),
                        chunk.y_origin,
                        chunk.height,
-                       chunk.height)
+                       chunk.height,
+                       chunk.row_line_spacing_height)
         chunk.grab_pre_effect_surface()
         chunk.set_rotation(45)
         chunk.redraw()

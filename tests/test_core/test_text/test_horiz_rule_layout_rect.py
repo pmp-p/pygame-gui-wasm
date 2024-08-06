@@ -7,11 +7,11 @@ from pygame_gui.core.text import HorizRuleLayoutRect
 
 
 class TestHorizRuleLayoutRect:
-    def test_creation(self, _init_pygame, default_ui_manager: UIManager):
+    def test_creation(self, _init_pygame, _display_surface_return_none, default_ui_manager: UIManager):
         HorizRuleLayoutRect(height=20,
                             colour_or_gradient=pygame.Color('#FFFFFF'))
 
-    def test_finalise(self):
+    def test_finalise(self, _init_pygame, _display_surface_return_none):
         horiz_rule = HorizRuleLayoutRect(height=20,
                                          rule_dimensions=(-1, 1),
                                          colour_or_gradient=pygame.Color('#FFFFFF'))
@@ -27,7 +27,8 @@ class TestHorizRuleLayoutRect:
                             target_area=pygame.Rect(0, 0, 200, 20),
                             row_chunk_origin=0,
                             row_chunk_height=20,
-                            row_bg_height=20)
+                            row_bg_height=20,
+                            row_line_spacing_height=20)
 
         assert rule_surface.get_at((10, 2)) == pygame.Color(0, 0, 0, 0)
         assert rule_surface.get_at((10, 10)) == pygame.Color(255, 255, 255, 255)
@@ -42,7 +43,8 @@ class TestHorizRuleLayoutRect:
                             target_area=pygame.Rect(0, 0, 200, 20),
                             row_chunk_origin=0,
                             row_chunk_height=20,
-                            row_bg_height=20)
+                            row_bg_height=20,
+                            row_line_spacing_height=20)
 
         horiz_rule = HorizRuleLayoutRect(height=20,
                                          colour_or_gradient=pygame.Color('#FFFFFF'),
@@ -55,7 +57,8 @@ class TestHorizRuleLayoutRect:
                             target_area=pygame.Rect(0, 0, 200, 20),
                             row_chunk_origin=0,
                             row_chunk_height=20,
-                            row_bg_height=20)
+                            row_bg_height=20,
+                            row_line_spacing_height=20)
 
 
 if __name__ == '__main__':

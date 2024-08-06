@@ -6,6 +6,7 @@ import pytest
 import i18n
 
 import pygame_gui
+from pygame_gui.core.utility import clipboard_paste
 from pygame_gui.elements.ui_text_box import UITextBox
 from pygame_gui.ui_manager import UIManager
 from tests.shared_comparators import compare_surfaces
@@ -19,8 +20,8 @@ class TestUITextBox:
     def test_creation(self, _init_pygame: None,
                       default_ui_manager: UIManager,
                       _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextBox(html_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                                        "<i>styles</i>.",
                              relative_rect=pygame.Rect(100, 100, 200, 300),
@@ -39,8 +40,8 @@ class TestUITextBox:
     def test_set_text(self, _init_pygame: None,
                       default_ui_manager: UIManager,
                       _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextBox(html_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                                        "<i>styles</i>.",
                              relative_rect=pygame.Rect(100, 100, 200, 300),
@@ -53,8 +54,8 @@ class TestUITextBox:
     def test_kwargs_set_text(self, _init_pygame, default_ui_manager,
                              _display_surface_return_none):
         i18n.add_translation('translation.test_hello', 'Hello %{name}')
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextBox(html_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                                        "<i>styles</i>.",
                              relative_rect=pygame.Rect(100, 100, 200, 300),
@@ -68,8 +69,8 @@ class TestUITextBox:
     def test_clear(self, _init_pygame: None,
                    default_ui_manager: UIManager,
                    _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextBox(html_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                                        "<i>styles</i>.",
                              relative_rect=pygame.Rect(100, 100, 200, 300),
@@ -82,30 +83,30 @@ class TestUITextBox:
     def test_creation_grow_to_fit_width(self, _init_pygame: None,
                                         default_ui_manager: UIManager,
                                         _display_surface_return_none):
-        default_ui_manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                                          {"name": "fira_code", "size:": 14, "style": "italic"}])
+        default_ui_manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                                          {"name": "noto_sans", "size:": 14, "style": "italic"}])
         text_box = UITextBox(html_text="<font color=#FF0000>Some text</font> in a <b>bold box</b> using colours and "
                                        "<i>styles</i>. Hey hey hey, what is this? More text padding this "
                                        "out a little."
                                        "Well OK.",
                              relative_rect=pygame.Rect(100, 100, -1, 50),
                              manager=default_ui_manager)
-        assert text_box.image is not None and text_box.rect.width == 984
+        assert text_box.image is not None and text_box.rect.width == 808
 
     def test_creation_and_rebuild_with_scrollbar(self, _init_pygame: None,
                                                  default_ui_manager: UIManager,
                                                  _display_surface_return_none):
-        default_ui_manager.preload_fonts([{'name': 'fira_code', 'html_size': 4.5, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4.5, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold_italic'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold_italic'}])
+        default_ui_manager.preload_fonts([{'name': 'noto_sans', 'html_size': 4.5, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4.5, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold_italic'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold_italic'}])
         text_box = UITextBox(html_text=''
                                        '<font color=regular_text><font color=#E784A2 size=4.5><br><b><u>Lorem</u>'
                                        '<br><br><br>'
@@ -184,17 +185,17 @@ class TestUITextBox:
 
     def test_kill(self, _init_pygame: None, default_ui_manager: UIManager,
                   _display_surface_return_none):
-        default_ui_manager.preload_fonts([{'name': 'fira_code', 'html_size': 4.5, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4.5, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'regular'},
-                                          {'name': 'fira_code', 'html_size': 6, 'style': 'bold_italic'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 4, 'style': 'italic'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold'},
-                                          {'name': 'fira_code', 'html_size': 2, 'style': 'bold_italic'}])
+        default_ui_manager.preload_fonts([{'name': 'noto_sans', 'html_size': 4.5, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4.5, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'regular'},
+                                          {'name': 'noto_sans', 'html_size': 6, 'style': 'bold_italic'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 4, 'style': 'italic'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold'},
+                                          {'name': 'noto_sans', 'html_size': 2, 'style': 'bold_italic'}])
         text_box = UITextBox(html_text=''
                                        '<font color=regular_text><font color=#E784A2 size=4.5><br><b><u>Lorem</u>'
                                        '<br><br><br>'
@@ -530,11 +531,11 @@ class TestUITextBox:
                                                _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_non_default.json"))
-        manager.preload_fonts([{"name": "fira_code", "point_size": 10, "style": "regular"},
-                               {'name': 'fira_code', 'point_size': 10, 'style': 'bold'},
-                               {"name": "fira_code", "point_size": 10, "style": "italic"},
-                               {"name": "fira_code", "point_size": 10, "style": "bold_italic"}])
-        htm_text_block_2 = UITextBox('<font face=fira_code size=2 color=#000000>'
+        manager.preload_fonts([{"name": "noto_sans", "point_size": 10, "style": "regular"},
+                               {'name': 'noto_sans', 'point_size': 10, 'style': 'bold'},
+                               {"name": "noto_sans", "point_size": 10, "style": "italic"},
+                               {"name": "noto_sans", "point_size": 10, "style": "bold_italic"}])
+        htm_text_block_2 = UITextBox('<font face=noto_sans size=2 color=#000000>'
                                      '<b>Hey, What the heck!</b>'
                                      '<br><br>'
                                      'This is some <a href="test">text</a> in a different box,'
@@ -608,9 +609,9 @@ class TestUITextBox:
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_non_default.json"))
 
-        manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                               {"name": "fira_code", "size:": 14, "style": "italic"}])
-        text_box = UITextBox(html_text="<font color=#FF0000 face=fira_code>Some "
+        manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                               {"name": "noto_sans", "size:": 14, "style": "italic"}])
+        text_box = UITextBox(html_text="<font color=#FF0000 face=noto_sans>Some "
                                        "<font color=regular_text>text</font> "
                                        "in a <b>bold box</b> <a>using</a> "
                                        "colours and <i>styles</i>.</font>",
@@ -628,9 +629,9 @@ class TestUITextBox:
         manager = UIManager((800, 600), os.path.join("tests", "data",
                                                      "themes", "ui_text_box_bad_values.json"))
 
-        manager.preload_fonts([{"name": "fira_code", "size:": 14, "style": "bold"},
-                               {"name": "fira_code", "size:": 14, "style": "italic"}])
-        text_box = UITextBox(html_text="<font color=#FF0000 face=fira_code>Some text in a <b>bold box</b> using "
+        manager.preload_fonts([{"name": "noto_sans", "size:": 14, "style": "bold"},
+                               {"name": "noto_sans", "size:": 14, "style": "italic"}])
+        text_box = UITextBox(html_text="<font color=#FF0000 face=noto_sans>Some text in a <b>bold box</b> using "
                                        "colours and <i>styles</i>.</font>",
                              relative_rect=pygame.Rect(100, 100, 200, 300),
                              manager=manager)
@@ -675,7 +676,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=True,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message")
 
         assert text_box.rect.height != 10
@@ -692,7 +693,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=True,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message")
 
         assert text_box.rect.height != 0
@@ -775,7 +776,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=False,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message",
                              visible=0)
 
@@ -802,7 +803,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=False,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message",
                              visible=0)
 
@@ -837,7 +838,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=False,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message")
 
         assert text_box.visible == 1
@@ -863,7 +864,7 @@ class TestUITextBox:
                              relative_rect=rect,
                              manager=default_ui_manager,
                              wrap_to_height=False,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message")
 
         assert text_box.visible == 1
@@ -895,7 +896,7 @@ class TestUITextBox:
                              relative_rect=pygame.Rect(100, 100, 400, 400),
                              manager=manager,
                              wrap_to_height=False,
-                             layer_starting_height=100,
+                             starting_height=100,
                              object_id="screen_message",
                              visible=0)
         manager.update(0.01)
@@ -968,6 +969,26 @@ class TestUITextBox:
                              manager=default_ui_manager)
         assert text_box.image is not None
         assert len(text_box.text_box_layout.layout_rows) == 3
+
+    def test_process_event_text_ctrl_c(self, _init_pygame: None,
+                                       _display_surface_return_none: None):
+        manager = UIManager((800, 600), os.path.join("tests", "data",
+                                                     "themes",
+                                                     "ui_text_entry_line_non_default_2.json"))
+        text_entry = UITextBox(html_text="dan",
+                               relative_rect=pygame.Rect(100, 100, 200, 30),
+                               manager=manager)
+
+        text_entry.focus()
+        text_entry.select_range = [0, 3]
+
+        processed_key_event = text_entry.process_event(pygame.event.Event(pygame.KEYDOWN,
+                                                                          {'key': pygame.K_c,
+                                                                           'mod': pygame.KMOD_CTRL,
+                                                                           'unicode': 'c'}))
+        text_entry.cursor_on = True
+
+        assert processed_key_event and clipboard_paste() == 'dan'
 
 
 if __name__ == '__main__':

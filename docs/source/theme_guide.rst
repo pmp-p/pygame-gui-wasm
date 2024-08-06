@@ -12,6 +12,9 @@ format. To load one, simply pass the path to the theme file into the UIManager w
 
     manager = pygame_gui.UIManager((800, 600), 'theme.json')
 
+Paths can be absolute or relative. Relative paths are relative to the current working directory
+of your python application at runtime - not to the file location where you create the manager.
+
 You can also theme your elements 'on the fly', while your pygame application is running. Just edit your theme file and
 save it, and you should see the UI update to reflect your changes. This is particularly helpful when trying to fiddle
 with colours, or visualise what the theming parameters do. You can also turn off live theming if you want to save a few
@@ -105,19 +108,19 @@ within the colours block you can start to set individual colours by their IDs. I
       - :blue:`blue`
       - A List of valid colour names can be found `here <https://w3schools.sinsixx.com/css/css_colornames.asp.htm>`_
     * - Hex
-      - 6 Hexidecimal Digits
+      - 6 Hexadecimal Digits
       - :example-hex:`#A2F3BB`
       - Native Pygame Color
     * - Hex (With Alpha)
-      - 8 Hexidecimal Digits
+      - 8 Hexadecimal Digits
       - :example-hex-with-alpha:`#C2558F9F`
       - Native Pygame Color
     * - Shorthand Hex
-      - 3 Hexidecimal Digits
+      - 3 Hexadecimal Digits
       - :example-shorthand-hex:`#FAB`
       - Expands doubly (e.g. would be #FFAABB)
     * - Shorthand Hex (With Alpha)
-      - 4 Hexidecimal Digits
+      - 4 Hexadecimal Digits
       - :example-shorthand-hex-with-alpha:`#AF2F`
       - Expands doubly (e.g. would be #AAFF22FF)
     * - RGB
@@ -131,11 +134,11 @@ within the colours block you can start to set individual colours by their IDs. I
     * - HSL
       - Degree, 2 Percentage Values
       - :example-hsl:`hsl(190deg, 40%, .5)`
-      - Hue, Saturation, Luminence
+      - Hue, Saturation, Luminance
     * - HSLA
       - Degree, 3 Percentage Values
       - :example-hsla:`hsla(10deg, 40%, .5, 0.7)`
-      - Hue, Saturation, Luminence, Alpha
+      - Hue, Saturation, Luminance, Alpha
     * - HSV
       - Degree, 2 Percentage Values
       - :example-hsv:`hsv(282deg, 63%, 92%)`
@@ -147,7 +150,7 @@ within the colours block you can start to set individual colours by their IDs. I
     * - CMY
       - 3 percentage values
       - :example-cmy:`cmy(.3, .5, .7)`
-      - Cyan, Magneta, Yellow
+      - Cyan, Magenta, Yellow
 
 .. list-table:: Value Types
     :widths: 10 40 20 20 20
@@ -278,7 +281,7 @@ then you can create on and pass it into your element when you create it. See the
    from pygame_gui.core import ObjectID
    from pygame_gui.elements import UIButton
 
-   ...  # other code ommitted here -
+   ...  # other code omitted here -
         # see quick start guide for how to get up and running with a single button
 
    hello_button = UIButton(relative_rect=pygame.Rect((350, 280), (-1, -1)),
@@ -320,6 +323,27 @@ Once the ObjectID is in place in the code you can refer to it in a block in your
        }
    }
 
+If you want to change a created element's Object ID later on, just use the `.change_object_id()` function. E.g.:
+
+.. code-block:: python
+   :caption: object_id.py
+   :linenos:
+   :emphasize-lines: 13,14
+
+   from pygame_gui.core import ObjectID
+   from pygame_gui.elements import UIButton
+
+   ...  # other code omitted here -
+        # see quick start guide for how to get up and running with a single button
+
+   hello_button = UIButton(relative_rect=pygame.Rect((350, 280), (-1, -1)),
+                           text='Hello',
+                           manager=manager,
+                           object_id=ObjectID(class_id='@friendly_buttons',
+                                              object_id='#hello_button'))
+
+   hello_button.change_object_id(ObjectID(class_id='@unfriendly_buttons',
+                                          object_id='#hello_button'))
 
 
 Theme block categories
@@ -413,7 +437,10 @@ of our UI theme.
 Prototype theme blocks must be defined higher in the theme file than where they are used, otherwise they won't exist to
 be imported.
 
-Here's a quick example:
+If you are using multiple locale specifiers in font blocks, you will need to specify these in every font block in your
+prototype hierarchy so that the theme loading can determine which locale's font to apply the theming to.
+
+Here's a quick example of using a simple prototype:
 
 .. code-block:: json
    :caption: theme.json
@@ -449,7 +476,7 @@ Multiple Theme Files
 --------------------
 
 Because of the way that pygame_gui loads theme files you can load multiple theme
-files with different stuff defined in each one into a single UI Manger:
+files with different stuff defined in each one into a single UI Manager:
 
 .. code-block:: python
    :linenos:

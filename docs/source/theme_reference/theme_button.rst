@@ -52,7 +52,7 @@ Font
 block has these parameters:
 
  - "**name**" - Necessary to make a valid block. This is the name that this font goes by in the UI, if this is a new font then subsequent font instances with different styles or sizes should use the same name.
- - "**locale**" - Optional parameter to set this font as belonging to a particular locale only. See the :ref:`localization` guide.
+ - "**locale**" - Optional parameter to set this font as belonging to a particular locale only. See the :ref:`localization` guide. You will need to keep repeating the locale specifier if using prototypes to make a hierarchy.
  - "**size**" - Necessary to make a valid block. This is the point size of the font to use on the button.
  - "**bold**" - Optional parameter. Set it to "1" to make this font bold.
  - "**italic**" - Optional parameter. Set it to "1" to make this font italic.
@@ -93,6 +93,7 @@ Images
     - "**package** - The name of the python package containing this resource - e.g. 'data.images'
     - "**resource** - The file name of the resource in the python package - e.g. 'splat.png' - Use a 'package' and 'resource' or a 'path' not both.
     - "**sub_surface_rect**" - An optional rectangle (described like "x,y,width,height") that will be used to grab a smaller portion of the image specified. This allows us to create many image surfaces from one image file.
+    - "**premultiplied**" - Optional parameter to declare that a loaded image already contains premultiplied alpha and does not need premultiplying. Set to "1" to enable, "0" to disable (default).
 
  - "**hovered_image**" - The image displayed in the buttons hovered state. It has the following block of sub-parameters:
 
@@ -100,6 +101,7 @@ Images
     - "**package** - The name of the python package containing this resource - e.g. 'data.images'
     - "**resource** - The file name of the resource in the python package - e.g. 'splat.png' - Use a 'package' and 'resource' or a 'path' not both.
     - "**sub_surface_rect**" - An optional rectangle (described like "x,y,width,height") that will be used to grab a smaller portion of the image specified. This allows us to create many image surfaces from one image file.
+    - "**premultiplied**" - Optional parameter to declare that a loaded image already contains premultiplied alpha and does not need premultiplying. Set to "1" to enable, "0" to disable (default).
 
  - "**selected_image**" - The image displayed in the buttons select focused state. It has the following block of sub-parameters:
 
@@ -107,6 +109,7 @@ Images
     - "**package** - The name of the python package containing this resource - e.g. 'data.images'
     - "**resource** - The file name of the resource in the python package - e.g. 'splat.png' - Use a 'package' and 'resource' or a 'path' not both.
     - "**sub_surface_rect**" - An optional rectangle (described like "x,y,width,height") that will be used to grab a smaller portion of the image specified. This allows us to create many image surfaces from one image file.
+    - "**premultiplied**" - Optional parameter to declare that a loaded image already contains premultiplied alpha and does not need premultiplying. Set to "1" to enable, "0" to disable (default).
 
  - "**disabled_image**" - The image displayed in the buttons disabled state. It has the following block of sub-parameters:
 
@@ -114,6 +117,7 @@ Images
     - "**package** - The name of the python package containing this resource - e.g. 'data.images'
     - "**resource** - The file name of the resource in the python package - e.g. 'splat.png' - Use a 'package' and 'resource' or a 'path' not both.
     - "**sub_surface_rect**" - An optional rectangle (described like "x,y,width,height") that will be used to grab a smaller portion of the image specified. This allows us to create many image surfaces from one image file.
+    - "**premultiplied**" - Optional parameter to declare that a loaded image already contains premultiplied alpha and does not need premultiplying. Set to "1" to enable, "0" to disable (default).
 
 
 Misc
@@ -122,10 +126,10 @@ Misc
 :class:`UIButton <pygame_gui.elements.UIButton>` accepts the following miscellaneous parameters in a 'misc' block:
 
  - "**shape**" - Can be one of 'rectangle', 'rounded_rectangle' or 'ellipse'. Different shapes for this UI element.
- - "**shape_corner_radius**" - Only used if our shape is 'rounded_rectangle'. It sets the radius used for the rounded corners.
+ - "**shape_corner_radius**" - Only used if our shape is 'rounded_rectangle'. It sets the radius, or radii, used for the rounded corners. Use a single integer to set all corners to the same radius, or four integers separated by commas to set each corner individually.
  - "**border_width**" - the width in pixels of the border around the button. Defaults to 1.
  - "**shadow_width**" - the width in pixels of the shadow behind the button. Defaults to 2.
- - "**tool_tip_delay**" - time in seconds before a the buttons tool sip (if it has one) will appear. Default is "1.0".
+ - "**tool_tip_delay**" - time in seconds before the button's tool tip (if it has one) will appear. Default is "1.0".
  - "**text_horiz_alignment**" - Set to "left", "right" or "center". Controls the horizontal placement of the button text, if this button has any text. Default is "center".
  - "**text_vert_alignment**" - Set to "top", "bottom or "center". Controls the vertical placement of the button text, if this button has any text. Default is "center".
  - "**text_horiz_alignment_padding**" - If horizontal alignment is set to 'left' or 'right' this value will control the buffer between the edge of the button and where we start placing the text. Default is "1".
@@ -220,6 +224,8 @@ Here is an example of a button block in a JSON theme file using all the paramete
             },
             "misc":
             {
+                "shape": "rounded_rectangle",
+                "shape_corner_radius": "10,0,0,0",
                 "border_width": "1",
                 "shadow_width": "1",
                 "tool_tip_delay": "1.0",

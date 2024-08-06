@@ -41,7 +41,7 @@ class TestUILabel:
                         text="Test Label",
                         manager=default_ui_manager)
         label.set_text("new text")
-        assert label.image is not None and label.rect.width == 64
+        assert label.image is not None and label.rect.width == 56
 
     def test_kwargs_set_text(self, _init_pygame, default_ui_manager,
                              _display_surface_return_none):
@@ -83,7 +83,7 @@ class TestUILabel:
         label.rebuild()
         assert label.image is not None
 
-    def test_rebuild_from_theme_data_non_default_1(self, _init_pygame):
+    def test_rebuild_from_theme_data_non_default_1(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data", "themes",
                                                      "ui_label_non_default_1.json"))
         label = UILabel(relative_rect=pygame.Rect(100, 100, 150, 30),
@@ -91,7 +91,7 @@ class TestUILabel:
                         manager=manager)
         assert label.image is not None
 
-    def test_rebuild_from_theme_data_non_default_2(self, _init_pygame):
+    def test_rebuild_from_theme_data_non_default_2(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data", "themes",
                                                      "ui_label_non_default_2.json"))
         label = UILabel(relative_rect=pygame.Rect(100, 100, 150, 30),
@@ -99,7 +99,7 @@ class TestUILabel:
                         manager=manager)
         assert label.image is not None
 
-    def test_rebuild_from_theme_data_non_default_3(self, _init_pygame):
+    def test_rebuild_from_theme_data_non_default_3(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data", "themes",
                                                      "ui_label_non_default_3.json"))
         label = UILabel(relative_rect=pygame.Rect(100, 100, 150, 30),
@@ -111,7 +111,7 @@ class TestUILabel:
     @pytest.mark.filterwarnings("ignore:Colour hex code")
     @pytest.mark.filterwarnings("ignore:Label Rect is too small for text")
     @pytest.mark.filterwarnings("ignore:Invalid Theme Colour")
-    def test_rebuild_from_theme_data_bad_values(self, _init_pygame):
+    def test_rebuild_from_theme_data_bad_values(self, _init_pygame, _display_surface_return_none):
         manager = UIManager((800, 600), os.path.join("tests", "data", "themes",
                                                      "ui_label_bad_values.json"))
         label = UILabel(relative_rect=pygame.Rect(100, 100, 10, 30),
@@ -230,14 +230,14 @@ class TestUILabel:
                         default_ui_manager)
         default_ui_manager.set_locale('fr')
 
-        assert label.drawable_shape.theming['text'] == "Anglaise"
+        assert label.drawable_shape.theming['text'] == "Anglais"
 
         label = UILabel(pygame.Rect((10, 100), (-1, 30)),
                         'pygame-gui.English',
                         default_ui_manager)
         default_ui_manager.set_locale('fr')
 
-        assert label.drawable_shape.theming['text'] == "Anglaise"
+        assert label.drawable_shape.theming['text'] == "Anglais"
 
         label = UILabel(pygame.Rect((10, 100), (-1, -1)),
                         'pygame-gui.English',

@@ -23,7 +23,7 @@ Colours
 :class:`UIScreenSpaceHealthBar <pygame_gui.elements.UIScreenSpaceHealthBar>` makes use of these colour parameters in a 'colours' block. Most of these colours can
 also be a colour gradient:
 
- - "**normal_text**" - The colour/gradient of the health bars's text.
+ - "**normal_text**" - The colour/gradient of the health bar's text.
  - "**text_shadow**" - The colour of the shadow behind the text (so it stands out better).
  - "**normal_border**" - The colour/gradient of the border around the health bar.
  - "**filled_bar**" - The colour/gradient of the actual bar itself, of the portion of it that is still full.
@@ -35,9 +35,10 @@ Misc
 :class:`UIScreenSpaceHealthBar <pygame_gui.elements.UIScreenSpaceHealthBar>` accepts the following miscellaneous parameters in a 'misc' block:
 
  - "**shape**" - Can be one of 'rectangle' or 'rounded_rectangle'. Different shapes for this UI element.
- - "**shape_corner_radius**" - Only used if our shape is 'rounded_rectangle'. It sets the radius used for the rounded corners.
+ - "**shape_corner_radius**" - Only used if our shape is 'rounded_rectangle'. It sets the radius, or radii, used for the rounded corners. Use a single integer to set all corners to the same radius, or four integers separated by commas to set each corner individually.
  - "**border_width**" - the width in pixels of the border around the bar. Defaults to 1.
  - "**shadow_width**" - the width in pixels of the shadow behind the bar. Defaults to 1.
+ - "**tool_tip_delay**" - time in seconds before the button's tool tip (if it has one) will appear. Default is "1.0".
 
 
 Font
@@ -46,6 +47,7 @@ Font
 :class:`UIScreenSpaceHealthBar <pygame_gui.elements.UIScreenSpaceHealthBar>` accepts a font specified in the theme via a 'font' block. A 'font' block has these parameters:
 
  - "**name**" - Necessary to make a valid block. This is the name that this font goes by in the UI, if this is a new font then subsequent font instances with different styles or sizes should use the same name.
+ - "**locale**" - Optional parameter to set this font as belonging to a particular locale only. See the :ref:`localization` guide. You will need to keep repeating the locale specifier if using prototypes to make a hierarchy.
  - "**size**" - Necessary to make a valid block. This is the point size of the font to use on the health bar.
  - "**bold**" - Optional parameter. Set it to "1" to make this font bold.
  - "**italic**" - Optional parameter. Set it to "1" to make this font italic.
