@@ -558,7 +558,7 @@ class UITextBox(UIElement, IUITextOwnerInterface):
                 self.redraw_from_text_block()
 
         scaled_mouse_pos = self.ui_manager.get_mouse_position()
-        if self.hovered:
+        if self.hovered and self.is_enabled:
             if (self.scroll_bar is None or
                     (self.scroll_bar is not None and
                      not self.scroll_bar.hover_point(scaled_mouse_pos[0], scaled_mouse_pos[1]))):
@@ -1221,6 +1221,9 @@ class UITextBox(UIElement, IUITextOwnerInterface):
         """
         In addition to the base UIElement.hide() - call hide() of scroll_bar if it exists.
         """
+        if not self.visible:
+            return
+
         super().hide()
 
         if self.scroll_bar is not None:
@@ -1483,7 +1486,8 @@ class UITextBox(UIElement, IUITextOwnerInterface):
         """
         super().unfocus()
         if self.placeholder_text is not None:
-            self.rebuild()
+            self.should_trigger_full_rebuild = True
+            self.full_rebuild_countdown = 0.0
 
     def focus(self):
         """
@@ -1492,7 +1496,8 @@ class UITextBox(UIElement, IUITextOwnerInterface):
         super().focus()
         self.cursor_has_moved_recently = True
         if self.placeholder_text is not None:
-            self.rebuild()
+            self.should_trigger_full_rebuild = True
+            self.full_rebuild_countdown = 0.0
 
     def _process_edit_pos_move_key(self, event: Event) -> bool:
         """
