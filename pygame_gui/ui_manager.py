@@ -25,7 +25,7 @@ from pygame_gui.elements import UITooltip
 if sys.platform in ('emscripten','wasi'):
     class FakeRL(IResourceLoader):
         def rl(self, *argv,**kw):
-            print(__file__, argv, kw)
+            print("# 28:", __file__, argv, kw)
         add_resource = start = started = update = rl
 
 
@@ -119,7 +119,7 @@ class UIManager(IUIManagerInterface):
             self.resource_loader.start()
             # If we are using a blocking loader this will only return when loading is complete
             self.resource_loader.update()
-        
+
     def create_new_theme(self, theme_path: Union[str, os.PathLike, io.StringIO, PackageResource, dict] = None) -> UIAppearanceTheme:
         """
         Create a new theme using self information.
@@ -257,7 +257,7 @@ class UIManager(IUIManagerInterface):
 
                             break
         return consumed_event
-    
+
     def set_ui_theme(self, theme: IUIAppearanceThemeInterface, update_all_sprites: bool = False):
         """
         Set ui theme.
@@ -271,7 +271,7 @@ class UIManager(IUIManagerInterface):
             sprite.ui_theme = theme
         self.ui_theme = theme
         self.rebuild_all_from_changed_theme_data(self.ui_theme)
-    
+
     def rebuild_all_from_changed_theme_data(self, theme: IUIAppearanceThemeInterface = None):
         for sprite in self.ui_group.sprites():
             if theme is not None and sprite.ui_theme is not theme:
