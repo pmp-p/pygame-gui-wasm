@@ -574,7 +574,8 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
 
         :return IGUIFontInterface: An interface to a pygame font object wrapper.
         """
-
+        font = None
+        
         for combined_element_id in combined_element_ids:
             if combined_element_id in self.ele_font_res:
                 if self._locale in self.ele_font_res[combined_element_id]:
@@ -685,7 +686,7 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
                 yield file, None
             finally:
                 file.close()
-
+                
     def load_theme(self, file_path: Union[str, os.PathLike, io.StringIO, PackageResource, dict]):
         """
         Loads a theme, and currently, all associated data like fonts and images required
@@ -699,11 +700,11 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
             theme_dict = self._load_theme_by_path(file_path)
             if theme_dict is None:
                 return
-
+            
         self._parse_theme_data_from_json_dict(theme_dict)
+            
 
-
-    def _load_theme_by_path(self, file_path: Union[str, os.PathLike, io.StringIO, PackageResource]) -> dict:
+    def _load_theme_by_path(self, file_path: Union[str, os.PathLike, io.StringIO, PackageResource]) -> dict:  
         """
         Loads a theme file, and currently, all associated data like fonts and images required
         by the theme.

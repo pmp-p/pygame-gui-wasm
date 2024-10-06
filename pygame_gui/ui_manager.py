@@ -26,7 +26,12 @@ if sys.platform in ('emscripten','wasi'):
     class FakeRL(IResourceLoader):
         def rl(self, *argv,**kw):
             print("# 28:", __file__, argv, kw)
-        add_resource = start = started = update = rl
+
+        def started(self, *argv,**kw):
+            return True
+
+        add_resource = start = update = rl
+
 
 
 class UIManager(IUIManagerInterface):

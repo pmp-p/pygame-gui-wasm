@@ -399,7 +399,7 @@ class FontResource:
                 location = f"/tmp/{hash(file_obj)}"
                 with open(location, wb) as file:
                     file.write(location)
-            print("407:",location)
+            print(f"407:{__file__} ",location)
             self.location = location
 
         error = None

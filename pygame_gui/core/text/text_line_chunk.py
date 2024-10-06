@@ -151,6 +151,8 @@ class TextLineChunkFTFont(TextLayoutRect):
         Do two layout rectangles have matching styles (generally applies only to actual text).
         """
         match_fonts = self.font == other_text_chunk.font
+        if self.font is None:
+            raise Error("Fatal")
         match_underlined = self.underlined == other_text_chunk.underlined
         match_colour = self.colour == other_text_chunk.colour
         match_bg_color = self.bg_colour == other_text_chunk.bg_colour
