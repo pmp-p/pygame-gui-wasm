@@ -750,26 +750,40 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
             if self._window_root_container is not None:
                 self._window_root_container.enable()
 
-    def show(self):
+    def show(self, show_contents: bool = True):
         """
         In addition to the base UIElement.show() - show the _window_root_container which will
         propagate and show all the children.
+
+        :param show_contents: whether to also show the contents of the window. Defaults to True.
         """
         super().show()
-        if self._window_root_container is not None:
-            self._window_root_container.show()
+        self._window_root_container.show(show_contents=False)
+        if self.title_bar is not None:
+            self.title_bar.show()
+        if self.close_window_button is not None:
+            self.close_window_button.show()
+        if self.window_element_container is not None:
+            self.window_element_container.show(show_contents)
 
-    def hide(self):
+    def hide(self, hide_contents: bool = True):
         """
         In addition to the base UIElement.hide() - hide the _window_root_container which will
         propagate and hide all the children.
+
+        :param hide_contents: whether to also hide the contents of the window. Defaults to True.
         """
         if not self.visible:
             return
 
         super().hide()
-        if self._window_root_container is not None:
-            self._window_root_container.hide()
+        self._window_root_container.hide(hide_contents=False)
+        if self.title_bar is not None:
+            self.title_bar.hide()
+        if self.close_window_button is not None:
+            self.close_window_button.hide()
+        if self.window_element_container is not None:
+            self.window_element_container.hide(hide_contents)
 
     def get_relative_mouse_pos(self):
         """

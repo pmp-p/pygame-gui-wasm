@@ -49,7 +49,7 @@ class UIScrollingContainer(UIElement, IContainerLikeInterface):
                  element_id: Union[List[str], None] = None,
                  anchors: Optional[Dict[str, Union[str, UIElement]]] = None,
                  visible: int = 1,
-                 should_grow_automatically: bool = True,
+                 should_grow_automatically: bool = False,
                  allow_scroll_x: bool = True,
                  allow_scroll_y: bool = True,
                  ):
@@ -513,29 +513,45 @@ class UIScrollingContainer(UIElement, IContainerLikeInterface):
             if self._root_container is not None:
                 self._root_container.enable()
 
-    def show(self):
+    def show(self, show_contents: bool = True):
         """
         In addition to the base UIElement.show() - call show() of owned container - _root_container.
         All other sub-elements (view_container, scrollbars) are children of _root_container, so
         it's visibility will propagate to them - there is no need to call their show() methods
         separately.
+
+        :param show_contents: whether to also show the contents of the container. Defaults to True.
         """
         super().show()
-        if self._root_container is not None:
-            self._root_container.show()
 
-    def hide(self):
+        self._root_container.show(show_contents=False)
+        if self.vert_scroll_bar is not None:
+            self.vert_scroll_bar.show()
+        if self.horiz_scroll_bar is not None:
+            self.horiz_scroll_bar.show()
+
+        if self._view_container is not None:
+            self._view_container.show(show_contents)
+
+    def hide(self, hide_contents: bool = True):
         """
         In addition to the base UIElement.hide() - call hide() of owned container - _root_container.
         All other sub-elements (view_container, scrollbars) are children of _root_container, so
         it's visibility will propagate to them - there is no need to call their hide() methods
         separately.
+
+        :param hide_contents: whether to also hide the contents of the container. Defaults to True.
         """
         if not self.visible:
             return
+        self._root_container.hide(hide_contents=False)
+        if self.vert_scroll_bar is not None:
+            self.vert_scroll_bar.hide()
+        if self.horiz_scroll_bar is not None:
+            self.horiz_scroll_bar.hide()
 
-        if self._root_container is not None:
-            self._root_container.hide()
+        if self._view_container is not None:
+            self._view_container.hide(hide_contents)
         super().hide()
 
     def __iter__(self) -> Iterator[IUIElementInterface]:

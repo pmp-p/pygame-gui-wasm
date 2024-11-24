@@ -384,7 +384,8 @@ class TestUIScrollingContainer:
 
         container = UIScrollingContainer(relative_rect=pygame.Rect(100, 100, 200, 100),
                                          manager=manager,
-                                         visible=0)
+                                         visible=0,
+                                         should_grow_automatically=True)
         button_1 = UIButton(relative_rect=pygame.Rect(300, 100, 150, 30),
                             text="Test Button",
                             tool_tip_text="This is a test of the button's tool tip functionality.",
@@ -438,13 +439,13 @@ class TestUIScrollingContainer:
         assert container.are_contents_hovered()
         assert container.vert_scroll_bar is not None
 
-        container.vert_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+        container.vert_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5, 'x': 0.0}))
 
         assert container.vert_scroll_bar.scroll_wheel_moved
 
         assert container.horiz_scroll_bar is not None
 
-        container.horiz_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'x': -0.5}))
+        container.horiz_scroll_bar.process_event(pygame.event.Event(pygame.MOUSEWHEEL, {'x': -0.5, 'y': 0.0}))
 
         assert container.horiz_scroll_bar.scroll_wheel_moved
 
@@ -465,7 +466,7 @@ class TestUIScrollingContainer:
         assert container.are_contents_hovered()
         assert container.vert_scroll_bar is not None
 
-        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5, 'x': 0.0}))
 
         assert container.vert_scroll_bar.scroll_wheel_moved
 
@@ -490,7 +491,7 @@ class TestUIScrollingContainer:
         assert container.are_contents_hovered()
         assert container.vert_scroll_bar is not None
 
-        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5, 'x': 0.0}))
 
         assert not container.vert_scroll_bar.scroll_wheel_moved
 
@@ -513,7 +514,7 @@ class TestUIScrollingContainer:
         assert container.are_contents_hovered()
         assert container.vert_scroll_bar is not None
 
-        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5}))
+        manager.process_events(pygame.event.Event(pygame.MOUSEWHEEL, {'y': -0.5, 'x': 0.0}))
 
         assert container.vert_scroll_bar.scroll_wheel_moved
 

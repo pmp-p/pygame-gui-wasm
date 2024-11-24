@@ -86,8 +86,8 @@ class UIPanel(UIElement, IContainerLikeInterface):
         else:
             self.container_margins = margins
 
-        container_rect = pygame.Rect(self.relative_rect.left,
-                                     self.relative_rect.top,
+        container_rect = pygame.Rect(self.relative_rect.left + self.container_margins['left'],
+                                     self.relative_rect.top + self.container_margins['top'],
                                      self.relative_rect.width - (self.container_margins['left'] +
                                                                  self.container_margins['right']),
                                      self.relative_rect.height - (self.container_margins['top'] +
@@ -287,23 +287,27 @@ class UIPanel(UIElement, IContainerLikeInterface):
             if self.panel_container is not None:
                 self.panel_container.enable()
 
-    def show(self):
+    def show(self, show_contents: bool = True):
         """
         In addition to the base UIElement.show() - call show() of owned container - panel_container.
+
+        :param show_contents: whether to also show the contents of the panel. Defaults to True.
         """
         super().show()
         if self.panel_container is not None:
-            self.panel_container.show()
+            self.panel_container.show(show_contents)
 
-    def hide(self):
+    def hide(self, hide_contents: bool = True):
         """
         In addition to the base UIElement.hide() - call hide() of owned container - panel_container.
+
+        :param hide_contents: whether to also hide the contents of the panel. Defaults to True.
         """
         if not self.visible:
             return
 
         if self.panel_container is not None:
-            self.panel_container.hide()
+            self.panel_container.hide(hide_contents)
         super().hide()
 
     def __iter__(self) -> Iterator[IUIElementInterface]:
